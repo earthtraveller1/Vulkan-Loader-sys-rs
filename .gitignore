@@ -31,5 +31,9 @@ _out64
 out32/*
 out64/*
 
-/target/
+# Added by cargo
+#
+# already existing elements were commented out
+
+/target
 /Cargo.lock
