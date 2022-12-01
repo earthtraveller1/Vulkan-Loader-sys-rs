@@ -22,7 +22,11 @@ fn main() {
         .header("external/Vulkan-Headers/build/install/include/vulkan/vulkan.h")
         .prepend_enum_name(false)
         .layout_tests(false)
-        .blocklist_type("_IMAGE_TLS_DIRECTORY64");
+        .blocklist_type("_IMAGE_TLS_DIRECTORY64")
+        .blocklist_type("IMAGE_TLS_DIRECTORY64")
+        .blocklist_type("IMAGE_TLS_DIRECTORY")
+        .blocklist_type("PIMAGE_TLS_DIRECTORY64")
+        .blocklist_type("PIMAGE_TLS_DIRECTORY");
 
     if target_os == "windows" {
         bindgen_builder = bindgen_builder.clang_arg("-DVK_USE_PLATFORM_WIN32_KHR");
