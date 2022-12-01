@@ -8,7 +8,7 @@ VKConfig.h
 build
 build32
 dbuild
-external/*
+# external/*
 !external/CMakeLists.txt
 !external/README.md
 *.so
