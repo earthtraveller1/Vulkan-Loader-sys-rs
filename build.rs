@@ -21,8 +21,7 @@ fn main() {
     let mut bindgen_builder = bindgen::Builder::default()
         .header("external/Vulkan-Headers/build/install/include/vulkan/vulkan.h")
         .prepend_enum_name(false)
-        .layout_tests(false)
-        .derive_default(true);
+        .layout_tests(false);
 
     if target_os == "windows" {
         bindgen_builder = bindgen_builder.clang_arg("-DVK_USE_PLATFORM_WIN32_KHR");
