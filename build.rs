@@ -4,10 +4,14 @@ fn main() {
     let profile = std::env::var("PROFILE").unwrap();
     let out_dir = std::env::var("OUT_DIR").unwrap();
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+    
+    cmake::Config::new("external/Vulkan-Headers")
+        .define("CMAKE_BUILD_TYPE", profile.as_str())
+        .build();
 
     cmake::Config::new(".")
-        .define("UPDATE_DEPS", "on")
-        .define("CMAKE_BUILD_TYPE", profile)
+        .define("CMAKE_BUILD_TYPE", profile.as_str())
+        .define("VULKAN_HEADERS_INSTALL_DIR", out_dir.as_str())
         .build();
 
     println!("cargo:rustc-link-search={}/lib", out_dir);
