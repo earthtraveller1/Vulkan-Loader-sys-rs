@@ -23,7 +23,7 @@ fn main() {
     }
 
     let mut bindgen_builder = bindgen::Builder::default()
-        .header("external/Vulkan-Headers/build/install/include/vulkan/vulkan.h")
+        .header(format!("{}/include/vulkan/vulkan.h", out_dir.as_str()))
         .prepend_enum_name(false)
         .layout_tests(false)
         .blocklist_type("_IMAGE_TLS_DIRECTORY64")
