@@ -1,4 +1,4 @@
-use std::{env::var, str::FromStr, process::Command};
+use std::{env, str::FromStr, process::Command};
 
 fn run_python(file: &str) -> bool {
     Command::new("python3")
@@ -11,8 +11,8 @@ fn run_python(file: &str) -> bool {
 }
 
 fn main() {
-    let out_dir = std::env::var("OUT_DIR").unwrap();
-    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
 
     cmake::Config::new(".")
         .define("VULKAN_HEADERS_INSTALL_DIR", out_dir.as_str())
