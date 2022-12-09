@@ -12,6 +12,20 @@ fn run_python(file: &str, cwd: &str) -> bool {
 }
 
 fn main() {
+    // Files that may affect the build of the project.
+    println!("cargo:rerun-if-changed=CMakeLists.txt");
+    println!("cargo:rerun-if-changed=.gn");
+    println!("cargo:rerun-if-changed=BUILD.gn");
+    println!("cargo:rerun-if-changed=vulkan.symbols.api");
+    
+    // Directories that may affect the build of the project.
+    println!("cargo:rerun-if-changed=loader");
+    println!("cargo:rerun-if-changed=scripts");
+    println!("cargo:rerun-if-changed=fuchsia");
+    println!("cargo:rerun-if-changed=cmake");
+    println!("cargo:rerun-if-changed=build-gn");
+    println!("cargo:rerun-if-changed=build-qnx");
+    
     let out_dir = env::var("OUT_DIR").unwrap();
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
     
