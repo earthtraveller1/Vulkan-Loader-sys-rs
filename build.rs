@@ -1,12 +1,18 @@
-use std::{env::var, str::FromStr};
+use std::{env::var, str::FromStr, process::Command};
+
+fn run_python(file: &str) -> bool {
+    Command::new("python3")
+        .arg(file)
+        .spawn()
+        .unwrap()
+        .wait()
+        .unwrap()
+        .success()
+}
 
 fn main() {
-    let profile = std::env::var("PROFILE").unwrap();
     let out_dir = std::env::var("OUT_DIR").unwrap();
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
-    
-    cmake::Config::new("external/Vulkan-Headers")
-        .build();
 
     cmake::Config::new(".")
         .define("VULKAN_HEADERS_INSTALL_DIR", out_dir.as_str())
