@@ -1,8 +1,6 @@
 use std::{env, str::FromStr, process::Command, fs};
 
 fn run_python(file: &str, cwd: &str) -> bool {
-    let out_dir = env::var("OUT_DIR").unwrap();
-    
     Command::new("python3")
         .arg(fs::canonicalize(file).unwrap())
         .current_dir(cwd)
