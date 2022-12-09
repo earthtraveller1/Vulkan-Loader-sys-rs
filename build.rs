@@ -1,8 +1,11 @@
-use std::{env, str::FromStr, process::Command};
+use std::{env, str::FromStr, process::Command, fs};
 
 fn run_python(file: &str) -> bool {
+    let out_dir = env::var("OUT_DIR").unwrap();
+    
     Command::new("python3")
-        .arg(file)
+        .arg(fs::canonicalize(file).unwrap())
+        .current_dir(out_dir)
         .spawn()
         .unwrap()
         .wait()
@@ -40,11 +43,11 @@ fn main() {
         bindgen_builder = bindgen_builder.clang_arg("-DVK_USE_PLATFORM_WIN32_KHR");
     }
 
-    if var("CARGO_FEATURE_XCB_EXTENSIONS").is_ok() {
+    if env::var("CARGO_FEATURE_XCB_EXTENSIONS").is_ok() {
         bindgen_builder = bindgen_builder.clang_arg("-DVK_USE_PLATFORM_XCB_KHR");
     }
 
-    if var("CARGO_FEATURE_WAYLAND_EXTENSIONS").is_ok() {
+    if env::var("CARGO_FEATURE_WAYLAND_EXTENSIONS").is_ok() {
         bindgen_builder = bindgen_builder.clang_arg("-DVK_USE_PLATFORM_WAYLAND_KHR");
     }
 
