@@ -6,11 +6,9 @@ fn main() {
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
     
     cmake::Config::new("external/Vulkan-Headers")
-        .define("CMAKE_BUILD_TYPE", profile.as_str())
         .build();
 
     cmake::Config::new(".")
-        .define("CMAKE_BUILD_TYPE", profile.as_str())
         .define("VULKAN_HEADERS_INSTALL_DIR", out_dir.as_str())
         .build();
 
