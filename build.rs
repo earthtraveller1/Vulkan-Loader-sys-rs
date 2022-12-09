@@ -1,11 +1,11 @@
 use std::{env, str::FromStr, process::Command, fs};
 
-fn run_python(file: &str) -> bool {
+fn run_python(file: &str, cwd: &str) -> bool {
     let out_dir = env::var("OUT_DIR").unwrap();
     
     Command::new("python3")
         .arg(fs::canonicalize(file).unwrap())
-        .current_dir(out_dir)
+        .current_dir(cwd)
         .spawn()
         .unwrap()
         .wait()
@@ -16,9 +16,12 @@ fn run_python(file: &str) -> bool {
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+    
+    fs::create_dir_all(format!("{}/deps", out_dir)).unwrap();
+    run_python("./scripts/update_deps.py", format!("{}/deps", out_dir).as_str());
 
     cmake::Config::new(".")
-        .define("VULKAN_HEADERS_INSTALL_DIR", out_dir.as_str())
+        .configure_arg(format!("-C{}/deps/helper.cmake", out_dir))
         .build();
 
     println!("cargo:rustc-link-search={}/lib", out_dir);
@@ -30,14 +33,12 @@ fn main() {
     }
 
     let mut bindgen_builder = bindgen::Builder::default()
-        .header(format!("{}/include/vulkan/vulkan.h", out_dir.as_str()))
+        .header(format!("{}/deps/Vulkan-Headers/build/install/include/vulkan/vulkan.h", out_dir.as_str()))
         .prepend_enum_name(false)
         .layout_tests(false)
-        .blocklist_type("_IMAGE_TLS_DIRECTORY64")
-        .blocklist_type("IMAGE_TLS_DIRECTORY64")
-        .blocklist_type("IMAGE_TLS_DIRECTORY")
-        .blocklist_type("PIMAGE_TLS_DIRECTORY64")
-        .blocklist_type("PIMAGE_TLS_DIRECTORY");
+        .allowlist_type("Vk.*")
+        .allowlist_function("vk.*")
+        .allowlist_var("VK_.*");
 
     if target_os == "windows" {
         bindgen_builder = bindgen_builder.clang_arg("-DVK_USE_PLATFORM_WIN32_KHR");
