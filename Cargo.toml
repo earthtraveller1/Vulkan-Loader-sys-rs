@@ -1,6 +1,6 @@
 [package]
 name = "vulkan-loader-sys"
-version = "1.3.235"
+version = "1.3.237"
 edition = "2021"
 license-file = "LICENSE.txt"
 description = "Vulkan Loader"
