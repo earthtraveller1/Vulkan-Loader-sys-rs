@@ -11,6 +11,18 @@ fn run_python(file: &str, cwd: &str) -> bool {
         .success()
 }
 
+fn rerun_if_dir_changed(dir: &str, recursive: bool) {
+    let directory = fs::read_dir(dir).unwrap();
+    for entry in directory {
+        let entry = entry.unwrap();
+        if recursive && entry.path().is_dir() {
+            rerun_if_dir_changed(entry.path().display().to_string().as_str(), recursive);
+        } else {
+            println!("cargo:rerun-if-changed={}", entry.path().display());
+        }
+    }
+}
+
 fn main() {
     // Files that may affect the build of the project.
     println!("cargo:rerun-if-changed=CMakeLists.txt");
@@ -19,12 +31,16 @@ fn main() {
     println!("cargo:rerun-if-changed=vulkan.symbols.api");
     
     // Directories that may affect the build of the project.
-    println!("cargo:rerun-if-changed=loader");
     println!("cargo:rerun-if-changed=scripts");
     println!("cargo:rerun-if-changed=fuchsia");
     println!("cargo:rerun-if-changed=cmake");
     println!("cargo:rerun-if-changed=build-gn");
     println!("cargo:rerun-if-changed=build-qnx");
+    
+    // The loader folder timestamp changes because of CMake configuration files
+    // being written and deleted to that directory, so we have to use this wei-
+    // rd hack.
+    rerun_if_dir_changed("loader", false);
     
     let out_dir = env::var("OUT_DIR").unwrap();
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
