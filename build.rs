@@ -63,6 +63,7 @@ fn main() {
     let mut bindgen_builder = bindgen::Builder::default()
         .header(format!("{}/deps/Vulkan-Headers/build/install/include/vulkan/vulkan.h", out_dir.as_str()))
         .prepend_enum_name(false)
+        .clang_arg(format!("-I{}/deps/Vulkan-headers/build/install/include", out_dir))
         .layout_tests(false)
         .allowlist_type("Vk.*")
         .allowlist_function("vk.*")
