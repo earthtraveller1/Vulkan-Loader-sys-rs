@@ -13,6 +13,8 @@ const ENABLE_VALIDATION: bool = true;
 const WINDOW_WIDTH: u32 = 800;
 const WINDOW_HEIGHT: u32 = 600;
 
+const SWAP_CHAIN_EXTENSION: *const i8 = VK_KHR_SWAPCHAIN_EXTENSION_NAME.as_ptr() as *const i8;
+
 unsafe fn create_instance(glfw: &glfw::Glfw) -> VkInstance {
     let application_info = VkApplicationInfo {
         sType: VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -35,7 +37,7 @@ unsafe fn create_instance(glfw: &glfw::Glfw) -> VkInstance {
         .map(|s| s.as_ptr())
         .collect::<Vec<*const i8>>();
 
-    let validation_layers = [b"VK_LAYER_KHRONOS_validation".as_ptr() as *const i8];
+    let validation_layers = [b"VK_LAYER_KHRONOS_validation\0".as_ptr() as *const i8];
 
     let create_info = VkInstanceCreateInfo {
         sType: VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
@@ -131,7 +133,39 @@ unsafe fn choose_physical_device(
         .find(|device| {
             let (graphics_family, present_family) = find_queue_families(**device);
 
-            graphics_family.is_some() && present_family.is_some()
+            let mut extension_count = 0;
+            vkEnumerateDeviceExtensionProperties(
+                **device,
+                null(),
+                &mut extension_count,
+                null_mut(),
+            );
+            let mut extensions = Vec::with_capacity(extension_count as usize);
+            vkEnumerateDeviceExtensionProperties(
+                **device,
+                null(),
+                &mut extension_count,
+                extensions.as_mut_ptr(),
+            );
+            extensions.set_len(extension_count as usize);
+
+            let swap_chain_extension_name = CStr::from_ptr(SWAP_CHAIN_EXTENSION).to_str().unwrap();
+
+            let swap_chain_extension = extensions.iter().find(|extension| {
+                CStr::from_ptr(extension.extensionName.as_ptr())
+                    .to_str()
+                    .unwrap()
+                    == swap_chain_extension_name
+            });
+
+            let (_, swap_chain_formats, present_modes) =
+                query_swap_chain_support(**device, surface);
+
+            graphics_family.is_some()
+                && present_family.is_some()
+                && swap_chain_extension.is_some()
+                && !swap_chain_formats.is_empty()
+                && !present_modes.is_empty()
         })
         .expect("Could not find an adequate physical device.");
 
@@ -191,6 +225,8 @@ unsafe fn create_logical_device(
         });
     }
 
+    let device_extensions = [SWAP_CHAIN_EXTENSION];
+
     let create_info = VkDeviceCreateInfo {
         sType: VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         pNext: null(),
@@ -199,8 +235,8 @@ unsafe fn create_logical_device(
         pQueueCreateInfos: queue_create_infos.as_ptr(),
         enabledLayerCount: 0,
         ppEnabledLayerNames: null(),
-        enabledExtensionCount: 0,
-        ppEnabledExtensionNames: null(),
+        enabledExtensionCount: device_extensions.len() as u32,
+        ppEnabledExtensionNames: device_extensions.as_ptr(),
         pEnabledFeatures: null(),
     };
 
@@ -214,6 +250,140 @@ unsafe fn create_logical_device(
     }
 
     device
+}
+
+unsafe fn query_swap_chain_support(
+    device: VkPhysicalDevice,
+    surface: VkSurfaceKHR,
+) -> (
+    VkSurfaceCapabilitiesKHR,
+    Vec<VkSurfaceFormatKHR>,
+    Vec<VkPresentModeKHR>,
+) {
+    let mut capabilities = MaybeUninit::uninit();
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, capabilities.as_mut_ptr());
+
+    let mut format_count = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &mut format_count, null_mut());
+    let mut formats = Vec::with_capacity(format_count as usize);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &mut format_count, formats.as_mut_ptr());
+    formats.set_len(format_count as usize);
+
+    let mut present_mode_count = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &mut present_mode_count, null_mut());
+    let mut present_modes = Vec::with_capacity(present_mode_count as usize);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(
+        device,
+        surface,
+        &mut present_mode_count,
+        present_modes.as_mut_ptr(),
+    );
+    present_modes.set_len(present_mode_count as usize);
+
+    (capabilities.assume_init(), formats, present_modes)
+}
+
+unsafe fn create_swap_chain(
+    physical_device: VkPhysicalDevice,
+    surface: VkSurfaceKHR,
+    window: &glfw::Window,
+    graphics_family: u32,
+    present_family: u32,
+    device: VkDevice,
+) -> (VkSwapchainKHR, VkFormat, VkExtent2D, Vec<VkImage>) {
+    // We start by querying the swap chain support details for the device.
+    let (surface_capabilities, surface_formats, present_modes) =
+        query_swap_chain_support(physical_device, surface);
+
+    // Choose the settings for the swap chain.
+    let surface_format = surface_formats
+        .iter()
+        .find(|format| {
+            format.format == VK_FORMAT_B8G8R8A8_SRGB
+                && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+        })
+        .unwrap_or(&surface_formats[0])
+        .clone();
+
+    let present_mode = present_modes
+        .iter()
+        .find(|mode| **mode == VK_PRESENT_MODE_MAILBOX_KHR)
+        .unwrap_or(&VK_PRESENT_MODE_FIFO_KHR)
+        .clone();
+
+    let swap_chain_extent = if surface_capabilities.currentExtent.width != u32::MAX {
+        surface_capabilities.currentExtent
+    } else {
+        let (width, height) = window.get_framebuffer_size();
+        VkExtent2D {
+            width: (width as u32).clamp(
+                surface_capabilities.minImageExtent.width,
+                surface_capabilities.maxImageExtent.width,
+            ),
+            height: (height as u32).clamp(
+                surface_capabilities.minImageExtent.height,
+                surface_capabilities.maxImageExtent.height,
+            ),
+        }
+    };
+
+    let queue_family_indices = [graphics_family, present_family];
+
+    let create_info = VkSwapchainCreateInfoKHR {
+        sType: VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        pNext: null(),
+        flags: 0,
+        surface: surface,
+        minImageCount: if surface_capabilities.maxImageCount > 0
+            && surface_capabilities.minImageCount == surface_capabilities.minImageCount
+        {
+            surface_capabilities.maxImageCount
+        } else {
+            surface_capabilities.minImageCount + 1
+        },
+        imageFormat: surface_format.format,
+        imageColorSpace: surface_format.colorSpace,
+        imageExtent: swap_chain_extent,
+        imageArrayLayers: 1,
+        imageUsage: VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        imageSharingMode: if graphics_family == present_family {
+            VK_SHARING_MODE_EXCLUSIVE
+        } else {
+            VK_SHARING_MODE_CONCURRENT
+        },
+        queueFamilyIndexCount: if graphics_family == present_family {
+            0
+        } else {
+            2
+        },
+        pQueueFamilyIndices: if graphics_family == present_family {
+            null()
+        } else {
+            queue_family_indices.as_ptr()
+        },
+        preTransform: surface_capabilities.currentTransform,
+        compositeAlpha: VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        presentMode: present_mode,
+        clipped: VK_TRUE,
+        oldSwapchain: null_mut(),
+    };
+
+    let mut swap_chain = null_mut();
+    let result = vkCreateSwapchainKHR(device, &create_info, null(), &mut swap_chain);
+    if result != VK_SUCCESS {
+        panic!(
+            "Failed to create the Vulkan swap chain. Vulkan error {}.",
+            result
+        );
+    }
+
+    let mut image_count = 0;
+    vkGetSwapchainImagesKHR(device, swap_chain, &mut image_count, null_mut());
+    let mut images = Vec::with_capacity(image_count as usize);
+    vkGetSwapchainImagesKHR(device, swap_chain, &mut image_count, images.as_mut_ptr());
+    images.set_len(image_count as usize);
+
+    (swap_chain, surface_format.format, swap_chain_extent, images)
 }
 
 fn main() {
@@ -240,10 +410,21 @@ fn main() {
         let device =
             create_logical_device(physical_device, graphics_queue_family, present_queue_family);
 
+        let (swap_chain, swap_chain_format, swap_chain_extent, swap_chain_images) =
+            create_swap_chain(
+                physical_device,
+                surface,
+                &window,
+                graphics_queue_family,
+                present_queue_family,
+                device,
+            );
+
         while !window.should_close() {
             glfw.poll_events();
         }
 
+        vkDestroySwapchainKHR(device, swap_chain, null());
         vkDestroyDevice(device, null());
         vkDestroySurfaceKHR(instance, surface, null());
         vkDestroyInstance(instance, null());
