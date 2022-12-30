@@ -153,31 +153,98 @@ unsafe fn choose_physical_device(
     (physical_device, graphics_family, present_family)
 }
 
-fn main() {
-    let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).expect("Failed to initialize GLFW.");
-    glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::NoApi));
-    glfw.window_hint(glfw::WindowHint::Resizable(false)); // Handling resizing is a bit complicated in Vulkan, so I'll disable it for now.
+unsafe fn create_logical_device(
+    physical_device: VkPhysicalDevice,
+    graphics_family: u32,
+    present_family: u32,
+) -> VkDevice {
+    let mut queue_create_infos = Vec::new();
 
-    let instance = unsafe { create_instance(&glfw) };
-    let (window, _) = glfw
-        .create_window(
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            "Triangle Example",
-            glfw::WindowMode::Windowed,
-        )
-        .expect("Failed to create the GLFW window.");
+    let queue_priority = 1.0f32;
 
-    let surface = create_surface(instance, &window);
+    if graphics_family == present_family {
+        queue_create_infos.push(VkDeviceQueueCreateInfo {
+            sType: VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            pNext: null(),
+            flags: 0,
+            queueFamilyIndex: graphics_family,
+            queueCount: 1,
+            pQueuePriorities: &queue_priority,
+        });
+    } else {
+        queue_create_infos.push(VkDeviceQueueCreateInfo {
+            sType: VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            pNext: null(),
+            flags: 0,
+            queueFamilyIndex: graphics_family,
+            queueCount: 1,
+            pQueuePriorities: &queue_priority,
+        });
 
-    let (physical_device, graphics_queue_family, present_queue_family) =
-        unsafe { choose_physical_device(instance, surface) };
-
-    while !window.should_close() {
-        glfw.poll_events();
+        queue_create_infos.push(VkDeviceQueueCreateInfo {
+            sType: VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            pNext: null(),
+            flags: 0,
+            queueFamilyIndex: present_family,
+            queueCount: 1,
+            pQueuePriorities: &queue_priority,
+        });
     }
 
+    let create_info = VkDeviceCreateInfo {
+        sType: VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        pNext: null(),
+        flags: 0,
+        queueCreateInfoCount: queue_create_infos.len() as u32,
+        pQueueCreateInfos: queue_create_infos.as_ptr(),
+        enabledLayerCount: 0,
+        ppEnabledLayerNames: null(),
+        enabledExtensionCount: 0,
+        ppEnabledExtensionNames: null(),
+        pEnabledFeatures: null(),
+    };
+
+    let mut device = null_mut();
+    let result = vkCreateDevice(physical_device, &create_info, null(), &mut device);
+    if result != VK_SUCCESS {
+        panic!(
+            "Failed to create the logical device. Vulkan error {}.",
+            result
+        );
+    }
+
+    device
+}
+
+fn main() {
     unsafe {
+        let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).expect("Failed to initialize GLFW.");
+        glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::NoApi));
+        glfw.window_hint(glfw::WindowHint::Resizable(false)); // Handling resizing is a bit complicated in Vulkan, so I'll disable it for now.
+
+        let instance = create_instance(&glfw);
+        let (window, _) = glfw
+            .create_window(
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT,
+                "Triangle Example",
+                glfw::WindowMode::Windowed,
+            )
+            .expect("Failed to create the GLFW window.");
+
+        let surface = create_surface(instance, &window);
+
+        let (physical_device, graphics_queue_family, present_queue_family) =
+            choose_physical_device(instance, surface);
+
+        let device =
+            create_logical_device(physical_device, graphics_queue_family, present_queue_family);
+
+        while !window.should_close() {
+            glfw.poll_events();
+        }
+
+        vkDestroyDevice(device, null());
         vkDestroySurfaceKHR(instance, surface, null());
         vkDestroyInstance(instance, null());
     }
