@@ -6,6 +6,8 @@ Because it is a mere FFI binding, this crate will expose the raw C interfaces to
 
 Due to the fact that I, the author of this binding, do not own a Mac and knows nothing about development on a Mac, macOS and iOS are currently not supported. If you want macOS or iOS support, feel free to open a pull request. Android isn't supported either for a similar reason. The Nintendo Switch is also not supported, but for a different reason.
 
+Please open an issue in [this repository](https://github.com/earthtraveller1/Vulkan-Loader-sys-rs) if you have problems adding this crate to your project.
+
 ## Introduction
 
 Vulkan is an explicit API, enabling direct control over how GPUs actually work. As such, Vulkan supports systems that have multiple GPUs, each running with a different driver, or ICD (Installable Client Driver). Vulkan also supports multiple global contexts (instances, in Vulkan terminology). The ICD loader is a library that is placed between a Vulkan application and any number of Vulkan drivers, in order to support multiple drivers and the instance-level functionality that works across these drivers. Additionally, the loader manages inserting Vulkan layer libraries, such as validation layers, between an application and the drivers.
