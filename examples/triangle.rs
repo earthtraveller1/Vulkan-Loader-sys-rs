@@ -386,6 +386,47 @@ unsafe fn create_swap_chain(
     (swap_chain, surface_format.format, swap_chain_extent, images)
 }
 
+unsafe fn create_image_views(
+    device: VkDevice,
+    images: Vec<VkImage>,
+    format: VkFormat,
+) -> Vec<VkImageView> {
+    images
+        .iter()
+        .map(|image| {
+            let create_info = VkImageViewCreateInfo {
+                sType: VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                pNext: null(),
+                flags: 0,
+                image: *image,
+                viewType: VK_IMAGE_VIEW_TYPE_2D,
+                format: format,
+                components: VkComponentMapping {
+                    r: VK_COMPONENT_SWIZZLE_IDENTITY,
+                    g: VK_COMPONENT_SWIZZLE_IDENTITY,
+                    b: VK_COMPONENT_SWIZZLE_IDENTITY,
+                    a: VK_COMPONENT_SWIZZLE_IDENTITY,
+                },
+                subresourceRange: VkImageSubresourceRange {
+                    aspectMask: VK_IMAGE_ASPECT_COLOR_BIT,
+                    baseMipLevel: 0,
+                    levelCount: 1,
+                    baseArrayLayer: 0,
+                    layerCount: 1,
+                },
+            };
+
+            let mut image_view = null_mut();
+            let result = vkCreateImageView(device, &create_info, null(), &mut image_view);
+            if result != VK_SUCCESS {
+                panic!("Failed to create an image view!");
+            }
+
+            image_view
+        })
+        .collect()
+}
+
 fn main() {
     unsafe {
         let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).expect("Failed to initialize GLFW.");
@@ -420,10 +461,16 @@ fn main() {
                 device,
             );
 
+        let swap_chain_image_views =
+            create_image_views(device, swap_chain_images, swap_chain_format);
+
         while !window.should_close() {
             glfw.poll_events();
         }
 
+        swap_chain_image_views
+            .iter()
+            .for_each(|image_view| vkDestroyImageView(device, *image_view, null()));
         vkDestroySwapchainKHR(device, swap_chain, null());
         vkDestroyDevice(device, null());
         vkDestroySurfaceKHR(instance, surface, null());
