@@ -1,5 +1,7 @@
 use std::{
     ffi::{CStr, CString},
+    fs::File,
+    io::Read,
     mem::MaybeUninit,
     ptr::{null, null_mut},
 };
@@ -433,6 +435,94 @@ fn main() {
                 image_view
             })
             .collect::<Vec<VkImageView>>();
+
+        {
+            let (vertex_shader_module, fragment_shader_module) = {
+                let mut vertex_file = File::open("examples/triangle/shaders/vertex.vert.spv").expect("Failed to open the vertex shader file. Make sure you are running from the project's root directory.");
+                let mut fragment_file = File::open("examples/triangle/shaders/fragment.frag.spv").expect("Failed to open the fragment shader file. Make sure you are running from the project's root directory.");
+
+                let mut vertex_code = Vec::new();
+                vertex_file
+                    .read_to_end(&mut vertex_code)
+                    .expect("Failed to read from the vertex shader file.");
+
+                let mut fragment_code = Vec::new();
+                fragment_file
+                    .read_to_end(&mut fragment_code)
+                    .expect("Failed to read from the fragment shader file.");
+
+                let vertex_module_create_info = VkShaderModuleCreateInfo {
+                    sType: VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+                    pNext: null(),
+                    flags: 0,
+                    codeSize: fragment_code.len(),
+                    pCode: fragment_code.as_ptr() as *const u32,
+                };
+
+                let fragment_module_create_info = VkShaderModuleCreateInfo {
+                    sType: VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+                    pNext: null(),
+                    flags: 0,
+                    codeSize: fragment_code.len(),
+                    pCode: fragment_code.as_ptr() as *const u32,
+                };
+
+                let mut vertex_module = null_mut();
+                let vertex_result = vkCreateShaderModule(
+                    device,
+                    &vertex_module_create_info,
+                    null(),
+                    &mut vertex_module,
+                );
+                if vertex_result != VK_SUCCESS {
+                    panic!(
+                        "Failed to create the vertex shader module. Vulkan error {}.",
+                        vertex_result
+                    );
+                }
+
+                let mut fragment_module = null_mut();
+                let fragment_result = vkCreateShaderModule(
+                    device,
+                    &fragment_module_create_info,
+                    null(),
+                    &mut fragment_module,
+                );
+                if fragment_result != VK_SUCCESS {
+                    panic!(
+                        "Failed to create the fragment shader module. Vulkan error {}.",
+                        fragment_result
+                    );
+                }
+
+                (vertex_module, fragment_module)
+            };
+
+            let vertex_shader_stage = VkPipelineShaderStageCreateInfo {
+                sType: VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                pNext: null(),
+                flags: 0,
+                stage: VK_SHADER_STAGE_VERTEX_BIT,
+                module: vertex_shader_module,
+                pName: b"main".as_ptr() as *const i8,
+                pSpecializationInfo: null(),
+            };
+
+            let fragment_shader_stage = VkPipelineShaderStageCreateInfo {
+                sType: VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                pNext: null(),
+                flags: 0,
+                stage: VK_SHADER_STAGE_FRAGMENT_BIT,
+                module: fragment_shader_module,
+                pName: b"main".as_ptr() as *const i8,
+                pSpecializationInfo: null(),
+            };
+
+            let shader_stages = [vertex_shader_stage, fragment_shader_stage];
+
+            vkDestroyShaderModule(device, vertex_shader_module, null());
+            vkDestroyShaderModule(device, fragment_shader_module, null());
+        }
 
         while !window.should_close() {
             glfw.poll_events();
