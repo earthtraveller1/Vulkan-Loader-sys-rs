@@ -2,9 +2,10 @@ use std::{
     ffi::{CStr, CString},
     fs::File,
     io::Read,
-    mem::MaybeUninit,
+    mem::{size_of, MaybeUninit},
     ptr::{null, null_mut},
 };
+
 /// Designed to be a basic Vulkan application.
 /// Would probably display a triangle some time in the future, but for now it
 /// is just Vulkan boilerplate code.
@@ -16,6 +17,13 @@ const WINDOW_WIDTH: u32 = 800;
 const WINDOW_HEIGHT: u32 = 600;
 
 const SWAP_CHAIN_EXTENSION: *const i8 = VK_KHR_SWAPCHAIN_EXTENSION_NAME.as_ptr() as *const i8;
+
+#[repr(C)]
+struct Vertex {
+    x: f32,
+    y: f32,
+    z: f32,
+}
 
 unsafe fn query_swap_chain_support(
     device: VkPhysicalDevice,
@@ -519,6 +527,52 @@ fn main() {
             };
 
             let shader_stages = [vertex_shader_stage, fragment_shader_stage];
+
+            let binding_description = VkVertexInputBindingDescription {
+                binding: 0,
+                stride: size_of::<Vertex>() as u32,
+                inputRate: VK_VERTEX_INPUT_RATE_VERTEX,
+            };
+
+            // We will only have one input attribute, and that is the vertex position.
+            let attribute_description = VkVertexInputAttributeDescription {
+                location: 0,
+                binding: 0,
+                format: VK_FORMAT_R32G32_SFLOAT,
+                offset: 0,
+            };
+
+            let vertex_input = VkPipelineVertexInputStateCreateInfo {
+                sType: VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+                pNext: null(),
+                flags: 0,
+                vertexBindingDescriptionCount: 1,
+                pVertexBindingDescriptions: &binding_description,
+                vertexAttributeDescriptionCount: 1,
+                pVertexAttributeDescriptions: &attribute_description,
+            };
+            
+            let input_assembly = VkPipelineInputAssemblyStateCreateInfo {
+                sType: VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+                pNext: null(),
+                flags: 0,
+                topology: VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+                primitiveRestartEnable: VK_FALSE,
+            };
+            
+            let viewport = VkViewport {
+                x: 0.0,
+                y: 0.0,
+                width: swap_chain_extent.width as f32,
+                height: swap_chain_extent.height as f32,
+                minDepth: 0.0,
+                maxDepth: 0.0
+            };
+            
+            let scissor = VkRect2D {
+                offset: VkOffset2D { x: 0, y: 0 },
+                extent: swap_chain_extent
+            };
 
             vkDestroyShaderModule(device, vertex_shader_module, null());
             vkDestroyShaderModule(device, fragment_shader_module, null());
