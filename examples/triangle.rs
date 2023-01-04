@@ -443,6 +443,26 @@ fn main() {
                 image_view
             })
             .collect::<Vec<VkImageView>>();
+        
+        let pipeline_layout = {
+            let create_info = VkPipelineLayoutCreateInfo {
+                sType: VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+                pNext: null(),
+                flags: 0,
+                setLayoutCount: 0,
+                pSetLayouts: null(),
+                pushConstantRangeCount: 0,
+                pPushConstantRanges: null()
+            };
+            
+            let mut pipeline_layout = null_mut();
+            let result = vkCreatePipelineLayout(device, &create_info, null(), &mut pipeline_layout);
+            if result != VK_SUCCESS {
+                panic!("Failed to create the pipeline layout.");
+            }
+            
+            pipeline_layout
+        };
 
         {
             let (vertex_shader_module, fragment_shader_module) = {
@@ -645,6 +665,7 @@ fn main() {
             glfw.poll_events();
         }
 
+        vkDestroyPipelineLayout(device, pipeline_layout, null());
         swap_chain_image_views
             .iter()
             .for_each(|image_view| vkDestroyImageView(device, *image_view, null()));
