@@ -368,7 +368,7 @@ fn main() {
                 imageColorSpace: surface_format.colorSpace,
                 imageExtent: swap_chain_extent,
                 imageArrayLayers: 1,
-                imageUsage: VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                imageUsage: VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT as u32,
                 imageSharingMode: if graphics_family == present_family {
                     VK_SHARING_MODE_EXCLUSIVE
                 } else {
@@ -426,7 +426,7 @@ fn main() {
                         a: VK_COMPONENT_SWIZZLE_IDENTITY,
                     },
                     subresourceRange: VkImageSubresourceRange {
-                        aspectMask: VK_IMAGE_ASPECT_COLOR_BIT,
+                        aspectMask: VK_IMAGE_ASPECT_COLOR_BIT as u32,
                         baseMipLevel: 0,
                         levelCount: 1,
                         baseArrayLayer: 0,
@@ -551,7 +551,7 @@ fn main() {
                 vertexAttributeDescriptionCount: 1,
                 pVertexAttributeDescriptions: &attribute_description,
             };
-            
+
             let input_assembly = VkPipelineInputAssemblyStateCreateInfo {
                 sType: VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
                 pNext: null(),
@@ -559,19 +559,82 @@ fn main() {
                 topology: VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
                 primitiveRestartEnable: VK_FALSE,
             };
-            
+
             let viewport = VkViewport {
                 x: 0.0,
                 y: 0.0,
                 width: swap_chain_extent.width as f32,
                 height: swap_chain_extent.height as f32,
                 minDepth: 0.0,
-                maxDepth: 0.0
+                maxDepth: 0.0,
             };
-            
+
             let scissor = VkRect2D {
                 offset: VkOffset2D { x: 0, y: 0 },
-                extent: swap_chain_extent
+                extent: swap_chain_extent,
+            };
+
+            let viewport_state = VkPipelineViewportStateCreateInfo {
+                sType: VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+                pNext: null(),
+                flags: 0,
+                viewportCount: 1,
+                pViewports: &viewport,
+                scissorCount: 1,
+                pScissors: &scissor,
+            };
+
+            let rasterization = VkPipelineRasterizationStateCreateInfo {
+                sType: VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+                pNext: null(),
+                flags: 0,
+                depthClampEnable: VK_FALSE,
+                rasterizerDiscardEnable: VK_FALSE,
+                polygonMode: VK_POLYGON_MODE_FILL,
+                cullMode: VK_CULL_MODE_BACK_BIT as u32,
+                frontFace: VK_FRONT_FACE_CLOCKWISE,
+                depthBiasEnable: VK_FALSE,
+                depthBiasConstantFactor: 0.0,
+                depthBiasClamp: 0.0,
+                depthBiasSlopeFactor: 0.0,
+                lineWidth: 1.0,
+            };
+
+            let multisampling = VkPipelineMultisampleStateCreateInfo {
+                sType: VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+                pNext: null(),
+                flags: 0,
+                rasterizationSamples: VK_SAMPLE_COUNT_1_BIT,
+                sampleShadingEnable: VK_FALSE,
+                minSampleShading: 0.0,
+                pSampleMask: null(),
+                alphaToCoverageEnable: VK_FALSE,
+                alphaToOneEnable: VK_FALSE,
+            };
+
+            let color_blend_attachment = VkPipelineColorBlendAttachmentState {
+                colorWriteMask: (VK_COLOR_COMPONENT_R_BIT
+                    | VK_COLOR_COMPONENT_G_BIT
+                    | VK_COLOR_COMPONENT_G_BIT
+                    | VK_COLOR_COMPONENT_A_BIT) as u32,
+                blendEnable: VK_FALSE,
+                srcColorBlendFactor: VK_BLEND_FACTOR_ONE,
+                dstColorBlendFactor: VK_BLEND_FACTOR_ZERO,
+                colorBlendOp: VK_BLEND_OP_ADD,
+                srcAlphaBlendFactor: VK_BLEND_FACTOR_ONE,
+                dstAlphaBlendFactor: VK_BLEND_FACTOR_ZERO,
+                alphaBlendOp: VK_BLEND_OP_ADD,
+            };
+
+            let color_blending = VkPipelineColorBlendStateCreateInfo {
+                sType: VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+                pNext: null(),
+                flags: 0,
+                logicOpEnable: VK_FALSE,
+                logicOp: VK_LOGIC_OP_COPY,
+                attachmentCount: 1,
+                pAttachments: &color_blend_attachment,
+                blendConstants: [0.0; 4],
             };
 
             vkDestroyShaderModule(device, vertex_shader_module, null());
