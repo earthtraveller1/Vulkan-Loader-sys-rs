@@ -783,11 +783,29 @@ fn main() {
 
             pipeline
         };
+        
+        let command_pool = {
+            let create_info = VkCommandPoolCreateInfo {
+                sType: VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+                pNext: null(),
+                flags: VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT as u32,
+                queueFamilyIndex: graphics_queue_family
+            };
+            
+            let mut pool = null_mut();
+            let result = vkCreateCommandPool(device, &create_info, null(), &mut pool);
+            if result != VK_SUCCESS {
+                panic!("Failed to create the command pool. Vulkan error {}.", result);
+            }
+            
+            pool
+        };
 
         while !window.should_close() {
             glfw.poll_events();
         }
-
+        
+        vkDestroyCommandPool(device, command_pool, null());
         swap_chain_framebuffers
             .iter()
             .for_each(|framebuffer| vkDestroyFramebuffer(device, *framebuffer, null()));
