@@ -499,6 +499,34 @@ fn main() {
             render_pass
         };
 
+        let swap_chain_framebuffers = {
+            swap_chain_image_views
+                .iter()
+                .map(|attachment| {
+                    let create_info = VkFramebufferCreateInfo {
+                        sType: VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+                        pNext: null(),
+                        flags: 0,
+                        renderPass: render_pass,
+                        attachmentCount: 1,
+                        pAttachments: attachment,
+                        width: swap_chain_extent.width,
+                        height: swap_chain_extent.height,
+                        layers: 1,
+                    };
+
+                    let mut framebuffer = null_mut();
+                    let result =
+                        vkCreateFramebuffer(device, &create_info, null(), &mut framebuffer);
+                    if result != VK_SUCCESS {
+                        panic!("Failed to create a framebuffer. Vulkan error {}.", result);
+                    }
+
+                    framebuffer
+                })
+                .collect::<Vec<VkFramebuffer>>()
+        };
+
         let pipeline_layout = {
             let create_info = VkPipelineLayoutCreateInfo {
                 sType: VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -760,6 +788,9 @@ fn main() {
             glfw.poll_events();
         }
 
+        swap_chain_framebuffers
+            .iter()
+            .for_each(|framebuffer| vkDestroyFramebuffer(device, *framebuffer, null()));
         vkDestroyPipeline(device, graphics_pipeline, null());
         vkDestroyRenderPass(device, render_pass, null());
         vkDestroyPipelineLayout(device, pipeline_layout, null());
