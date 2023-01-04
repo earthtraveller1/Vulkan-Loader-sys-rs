@@ -538,8 +538,8 @@ fn main() {
                     sType: VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
                     pNext: null(),
                     flags: 0,
-                    codeSize: fragment_code.len(),
-                    pCode: fragment_code.as_ptr() as *const u32,
+                    codeSize: vertex_code.len(),
+                    pCode: vertex_code.as_ptr() as *const u32,
                 };
 
                 let fragment_module_create_info = VkShaderModuleCreateInfo {
@@ -587,7 +587,7 @@ fn main() {
                 flags: 0,
                 stage: VK_SHADER_STAGE_VERTEX_BIT,
                 module: vertex_shader_module,
-                pName: b"main".as_ptr() as *const i8,
+                pName: b"main\0".as_ptr() as *const i8,
                 pSpecializationInfo: null(),
             };
 
@@ -597,7 +597,7 @@ fn main() {
                 flags: 0,
                 stage: VK_SHADER_STAGE_FRAGMENT_BIT,
                 module: fragment_shader_module,
-                pName: b"main".as_ptr() as *const i8,
+                pName: b"main\0".as_ptr() as *const i8,
                 pSpecializationInfo: null(),
             };
 
