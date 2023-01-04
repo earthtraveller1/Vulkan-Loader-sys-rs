@@ -519,7 +519,7 @@ fn main() {
             pipeline_layout
         };
 
-        {
+        let graphics_pipeline = {
             let (vertex_shader_module, fragment_shader_module) = {
                 let mut vertex_file = File::open("examples/triangle/shaders/vertex.vert.spv").expect("Failed to open the vertex shader file. Make sure you are running from the project's root directory.");
                 let mut fragment_file = File::open("examples/triangle/shaders/fragment.frag.spv").expect("Failed to open the fragment shader file. Make sure you are running from the project's root directory.");
@@ -712,14 +712,55 @@ fn main() {
                 blendConstants: [0.0; 4],
             };
 
+            let create_info = VkGraphicsPipelineCreateInfo {
+                sType: VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+                pNext: null(),
+                flags: 0,
+                stageCount: shader_stages.len() as u32,
+                pStages: shader_stages.as_ptr(),
+                pVertexInputState: &vertex_input,
+                pInputAssemblyState: &input_assembly,
+                pTessellationState: null(),
+                pViewportState: &viewport_state,
+                pRasterizationState: &rasterization,
+                pMultisampleState: &multisampling,
+                pDepthStencilState: null(),
+                pColorBlendState: &color_blending,
+                pDynamicState: null(),
+                layout: pipeline_layout,
+                renderPass: render_pass,
+                subpass: 0,
+                basePipelineHandle: null_mut(),
+                basePipelineIndex: 0,
+            };
+
+            let mut pipeline = null_mut();
+            let result = vkCreateGraphicsPipelines(
+                device,
+                null_mut(),
+                1,
+                &create_info,
+                null(),
+                &mut pipeline,
+            );
+            if result != VK_SUCCESS {
+                panic!(
+                    "Failed to create the graphics pipeline. Vulkan error {}.",
+                    result
+                );
+            }
+
             vkDestroyShaderModule(device, vertex_shader_module, null());
             vkDestroyShaderModule(device, fragment_shader_module, null());
-        }
+
+            pipeline
+        };
 
         while !window.should_close() {
             glfw.poll_events();
         }
 
+        vkDestroyPipeline(device, graphics_pipeline, null());
         vkDestroyRenderPass(device, render_pass, null());
         vkDestroyPipelineLayout(device, pipeline_layout, null());
         swap_chain_image_views
