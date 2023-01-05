@@ -783,28 +783,129 @@ fn main() {
 
             pipeline
         };
-        
+
         let command_pool = {
             let create_info = VkCommandPoolCreateInfo {
                 sType: VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
                 pNext: null(),
                 flags: VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT as u32,
-                queueFamilyIndex: graphics_queue_family
+                queueFamilyIndex: graphics_queue_family,
             };
-            
+
             let mut pool = null_mut();
             let result = vkCreateCommandPool(device, &create_info, null(), &mut pool);
             if result != VK_SUCCESS {
-                panic!("Failed to create the command pool. Vulkan error {}.", result);
+                panic!(
+                    "Failed to create the command pool. Vulkan error {}.",
+                    result
+                );
             }
-            
+
             pool
+        };
+
+        let vertices = [0.0f32, -0.5f32, 0.5f32, 0.5f32, -0.5f32, 0.5f32];
+
+        {
+            let buffer_size = (vertices.len() * 4) as VkDeviceSize;
+
+            let (staging_buffer, staging_buffer_memory) = {
+                let create_info = VkBufferCreateInfo {
+                    sType: VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                    pNext: null(),
+                    flags: 0,
+                    size: buffer_size,
+                    usage: VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                    sharingMode: VK_SHARING_MODE_EXCLUSIVE,
+                    queueFamilyIndexCount: 0,
+                    pQueueFamilyIndices: null(),
+                };
+
+                let mut buffer = null_mut();
+                let result = vkCreateBuffer(device, &create_info, null(), &mut buffer);
+                if result != VK_SUCCESS {
+                    panic!(
+                        "Failed to create the staging buffer. Vulkan error {}",
+                        result
+                    );
+                }
+
+                let mut memory_requirements = MaybeUninit::uninit();
+                vkGetBufferMemoryRequirements(device, buffer, memory_requirements.as_mut_ptr());
+                let memory_requirements = memory_requirements.assume_init();
+
+                let mut memory_properties = MaybeUninit::uninit();
+                vkGetPhysicalDeviceMemoryProperties(
+                    physical_device,
+                    memory_properties.as_mut_ptr(),
+                );
+                let memory_properties = memory_properties.assume_init();
+
+                let type_filter = memory_requirements.memoryTypeBits;
+                let properties =
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+                let memory_type = {
+                    let mut memory_type = 0;
+                    let mut found = false;
+
+                    for i in 0..memory_properties.memoryTypeCount {
+                        if ((type_filter & (1 << i)) > 0)
+                            && (memory_properties.memoryTypes[i as usize].propertyFlags
+                                & properties)
+                                == properties
+                        {
+                            memory_type = i;
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if !found {
+                        panic!("Failed to find a suitable memory type for the staging buffer!");
+                    }
+
+                    memory_type
+                };
+
+                let allocate_info = VkMemoryAllocateInfo {
+                    sType: VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                    pNext: null(),
+                    allocationSize: buffer_size,
+                    memoryTypeIndex: memory_type,
+                };
+
+                let mut memory = null_mut();
+                let result2 = vkAllocateMemory(device, &allocate_info, null(), &mut memory);
+                if result2 != VK_SUCCESS {
+                    panic!(
+                        "Failed to allocate memory for the staging buffer. Vulkan error {}",
+                        result2
+                    );
+                }
+
+                vkBindBufferMemory(device, buffer, memory, 0);
+
+                let mut memory_ptr = null_mut();
+                vkMapMemory(device, memory, 0, buffer_size, 0, &mut memory_ptr);
+                std::ptr::copy_nonoverlapping(
+                    vertices.as_ptr(),
+                    memory_ptr as *mut f32,
+                    vertices.len(),
+                );
+                vkUnmapMemory(device, memory);
+
+                (buffer, memory)
+            };
+
+            vkDestroyBuffer(device, staging_buffer, null());
+            vkFreeMemory(device, staging_buffer_memory, null());
         };
 
         while !window.should_close() {
             glfw.poll_events();
         }
-        
+
         vkDestroyCommandPool(device, command_pool, null());
         swap_chain_framebuffers
             .iter()
