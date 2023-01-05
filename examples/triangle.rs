@@ -18,13 +18,6 @@ const WINDOW_HEIGHT: u32 = 600;
 
 const SWAP_CHAIN_EXTENSION: *const i8 = VK_KHR_SWAPCHAIN_EXTENSION_NAME.as_ptr() as *const i8;
 
-#[repr(C)]
-struct Vertex {
-    x: f32,
-    y: f32,
-    z: f32,
-}
-
 unsafe fn query_swap_chain_support(
     device: VkPhysicalDevice,
     surface: VkSurfaceKHR,
@@ -639,7 +632,7 @@ fn main() {
 
             let binding_description = VkVertexInputBindingDescription {
                 binding: 0,
-                stride: size_of::<Vertex>() as u32,
+                stride: (2 * size_of::<f32>()) as u32,
                 inputRate: VK_VERTEX_INPUT_RATE_VERTEX,
             };
 
