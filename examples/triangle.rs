@@ -806,7 +806,7 @@ fn main() {
 
         let vertices = [0.0f32, -0.5f32, 0.5f32, 0.5f32, -0.5f32, 0.5f32];
 
-        {
+        let (vertex_buffer, vertex_buffer_memory) = {
             let buffer_size = (vertices.len() * 4) as VkDeviceSize;
 
             let (staging_buffer, staging_buffer_memory) = {
@@ -871,7 +871,7 @@ fn main() {
                 let allocate_info = VkMemoryAllocateInfo {
                     sType: VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
                     pNext: null(),
-                    allocationSize: buffer_size,
+                    allocationSize: memory_requirements.size,
                     memoryTypeIndex: memory_type,
                 };
 
@@ -898,14 +898,145 @@ fn main() {
                 (buffer, memory)
             };
 
+            let create_info = VkBufferCreateInfo {
+                sType: VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                pNext: null(),
+                flags: 0,
+                size: buffer_size,
+                usage: VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                sharingMode: VK_SHARING_MODE_EXCLUSIVE,
+                queueFamilyIndexCount: 0,
+                pQueueFamilyIndices: null(),
+            };
+
+            let mut buffer = null_mut();
+            let result = vkCreateBuffer(device, &create_info, null(), &mut buffer);
+            if result != VK_SUCCESS {
+                panic!(
+                    "Failed to create the vertex buffer. Vulkan error {}.",
+                    result
+                );
+            }
+
+            let mut memory_requirements = MaybeUninit::uninit();
+            vkGetBufferMemoryRequirements(device, buffer, memory_requirements.as_mut_ptr());
+            let memory_requirements = memory_requirements.assume_init();
+
+            let mut memory_properties = MaybeUninit::uninit();
+            vkGetPhysicalDeviceMemoryProperties(physical_device, memory_properties.as_mut_ptr());
+            let memory_properties = memory_properties.assume_init();
+
+            let memory_type_filter = memory_requirements.memoryTypeBits;
+            let memory_property_flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+            let memory_type = {
+                let mut found = false;
+                let mut memory_type = 0;
+
+                for i in 0..memory_properties.memoryTypeCount {
+                    if (memory_type_filter & (1 << i)) != 0 {
+                        if (memory_properties.memoryTypes[i as usize].propertyFlags
+                            & memory_property_flags)
+                            == memory_property_flags
+                        {
+                            memory_type = i;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if !found {
+                    panic!("Failed to find an adequate memory type for the vertex buffer.");
+                }
+
+                memory_type
+            };
+
+            let allocate_info = VkMemoryAllocateInfo {
+                sType: VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                pNext: null(),
+                allocationSize: memory_requirements.size,
+                memoryTypeIndex: memory_type,
+            };
+
+            let mut memory = null_mut();
+            let result = vkAllocateMemory(device, &allocate_info, null(), &mut memory);
+            if result != VK_SUCCESS {
+                panic!("Failed to allocate memory for the vertex buffer.");
+            }
+            
+            vkBindBufferMemory(device, buffer, memory, 0);
+
+            let allocate_info = VkCommandBufferAllocateInfo {
+                sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                pNext: null(),
+                level: VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                commandPool: command_pool,
+                commandBufferCount: 1,
+            };
+
+            let mut command_buffer = null_mut();
+            let result = vkAllocateCommandBuffers(device, &allocate_info, &mut command_buffer);
+            if result != VK_SUCCESS {
+                panic!("Failed to allocate command buffers for copying the staging buffer!");
+            }
+
+            let begin_info = VkCommandBufferBeginInfo {
+                sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                pNext: null(),
+                flags: VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+                pInheritanceInfo: null(),
+            };
+
+            let result = vkBeginCommandBuffer(command_buffer, &begin_info);
+            if result != VK_SUCCESS {
+                panic!("Failed to begin the command buffer for copying the staging buffer!");
+            }
+
+            let buffer_copy_region = VkBufferCopy {
+                srcOffset: 0,
+                dstOffset: 0,
+                size: buffer_size,
+            };
+
+            vkCmdCopyBuffer(
+                command_buffer,
+                staging_buffer,
+                buffer,
+                1,
+                &buffer_copy_region,
+            );
+            
+            let result = vkEndCommandBuffer(command_buffer);
+            if result != VK_SUCCESS {
+                panic!("Failed to end the command buffer for copying the staging buffer!");
+            }
+            
+            let submit_info = VkSubmitInfo {
+                sType: VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                pNext: null(),
+                waitSemaphoreCount: 0,
+                pWaitSemaphores: null(),
+                pWaitDstStageMask: null(),
+                commandBufferCount: 1,
+                pCommandBuffers: &command_buffer,
+                signalSemaphoreCount: 0,
+                pSignalSemaphores: null()
+            };
+
             vkDestroyBuffer(device, staging_buffer, null());
             vkFreeMemory(device, staging_buffer_memory, null());
+            
+            (buffer, memory)
         };
 
         while !window.should_close() {
             glfw.poll_events();
         }
-
+        
+        vkDestroyBuffer(device, vertex_buffer, null());
+        vkFreeMemory(device, vertex_buffer_memory, null());
         vkDestroyCommandPool(device, command_pool, null());
         swap_chain_framebuffers
             .iter()
