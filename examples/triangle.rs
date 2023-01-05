@@ -1030,6 +1030,13 @@ fn main() {
                 signalSemaphoreCount: 0,
                 pSignalSemaphores: null()
             };
+            
+            let result = vkQueueSubmit(graphics_queue, 1, &submit_info, null_mut());
+            if result != VK_SUCCESS {
+                panic!("Failed to submit the commands for copying the staging buffer!");
+            }
+            
+            vkQueueWaitIdle(graphics_queue);
 
             vkDestroyBuffer(device, staging_buffer, null());
             vkFreeMemory(device, staging_buffer_memory, null());
