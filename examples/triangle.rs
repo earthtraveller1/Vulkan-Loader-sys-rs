@@ -246,7 +246,7 @@ fn main() {
             (physical_device, graphics_family, present_family)
         };
 
-        let device = {
+        let (device, graphics_queue, present_queue) = {
             let graphics_family = &graphics_queue_family;
             let present_family = &present_queue_family;
 
@@ -306,8 +306,14 @@ fn main() {
                     result
                 );
             }
+            
+            let mut graphics_queue = null_mut();
+            let mut present_queue = null_mut();
+            
+            vkGetDeviceQueue(device, graphics_queue_family, 0, &mut graphics_queue);
+            vkGetDeviceQueue(device, present_queue_family, 0, &mut present_queue);
 
-            device
+            (device, graphics_queue, present_queue)
         };
 
         let (swap_chain, swap_chain_format, swap_chain_extent, swap_chain_images) = {
