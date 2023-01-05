@@ -18,37 +18,6 @@ const WINDOW_HEIGHT: u32 = 600;
 
 const SWAP_CHAIN_EXTENSION: *const i8 = VK_KHR_SWAPCHAIN_EXTENSION_NAME.as_ptr() as *const i8;
 
-unsafe fn query_swap_chain_support(
-    device: VkPhysicalDevice,
-    surface: VkSurfaceKHR,
-) -> (
-    VkSurfaceCapabilitiesKHR,
-    Vec<VkSurfaceFormatKHR>,
-    Vec<VkPresentModeKHR>,
-) {
-    let mut capabilities = MaybeUninit::uninit();
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, capabilities.as_mut_ptr());
-
-    let mut format_count = 0;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &mut format_count, null_mut());
-    let mut formats = Vec::with_capacity(format_count as usize);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &mut format_count, formats.as_mut_ptr());
-    formats.set_len(format_count as usize);
-
-    let mut present_mode_count = 0;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &mut present_mode_count, null_mut());
-    let mut present_modes = Vec::with_capacity(present_mode_count as usize);
-    vkGetPhysicalDeviceSurfacePresentModesKHR(
-        device,
-        surface,
-        &mut present_mode_count,
-        present_modes.as_mut_ptr(),
-    );
-    present_modes.set_len(present_mode_count as usize);
-
-    (capabilities.assume_init(), formats, present_modes)
-}
-
 fn main() {
     unsafe {
         let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).expect("Failed to initialize GLFW.");
@@ -210,8 +179,48 @@ fn main() {
                             == swap_chain_extension_name
                     });
 
-                    let (_, swap_chain_formats, present_modes) =
-                        query_swap_chain_support(**device, surface);
+                    let (_, swap_chain_formats, present_modes) = {
+                        let mut capabilities = MaybeUninit::uninit();
+                        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+                            **device,
+                            surface,
+                            capabilities.as_mut_ptr(),
+                        );
+
+                        let mut format_count = 0;
+                        vkGetPhysicalDeviceSurfaceFormatsKHR(
+                            **device,
+                            surface,
+                            &mut format_count,
+                            null_mut(),
+                        );
+                        let mut formats = Vec::with_capacity(format_count as usize);
+                        vkGetPhysicalDeviceSurfaceFormatsKHR(
+                            **device,
+                            surface,
+                            &mut format_count,
+                            formats.as_mut_ptr(),
+                        );
+                        formats.set_len(format_count as usize);
+
+                        let mut present_mode_count = 0;
+                        vkGetPhysicalDeviceSurfacePresentModesKHR(
+                            **device,
+                            surface,
+                            &mut present_mode_count,
+                            null_mut(),
+                        );
+                        let mut present_modes = Vec::with_capacity(present_mode_count as usize);
+                        vkGetPhysicalDeviceSurfacePresentModesKHR(
+                            **device,
+                            surface,
+                            &mut present_mode_count,
+                            present_modes.as_mut_ptr(),
+                        );
+                        present_modes.set_len(present_mode_count as usize);
+
+                        (capabilities.assume_init(), formats, present_modes)
+                    };
 
                     graphics_family.is_some()
                         && present_family.is_some()
@@ -299,10 +308,10 @@ fn main() {
                     result
                 );
             }
-            
+
             let mut graphics_queue = null_mut();
             let mut present_queue = null_mut();
-            
+
             vkGetDeviceQueue(device, graphics_queue_family, 0, &mut graphics_queue);
             vkGetDeviceQueue(device, present_queue_family, 0, &mut present_queue);
 
@@ -314,8 +323,48 @@ fn main() {
             let present_family = &present_queue_family;
 
             // We start by querying the swap chain support details for the device.
-            let (surface_capabilities, surface_formats, present_modes) =
-                query_swap_chain_support(physical_device, surface);
+            let (surface_capabilities, surface_formats, present_modes) = {
+                let mut capabilities = MaybeUninit::uninit();
+                vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+                    physical_device,
+                    surface,
+                    capabilities.as_mut_ptr(),
+                );
+
+                let mut format_count = 0;
+                vkGetPhysicalDeviceSurfaceFormatsKHR(
+                    physical_device,
+                    surface,
+                    &mut format_count,
+                    null_mut(),
+                );
+                let mut formats = Vec::with_capacity(format_count as usize);
+                vkGetPhysicalDeviceSurfaceFormatsKHR(
+                    physical_device,
+                    surface,
+                    &mut format_count,
+                    formats.as_mut_ptr(),
+                );
+                formats.set_len(format_count as usize);
+
+                let mut present_mode_count = 0;
+                vkGetPhysicalDeviceSurfacePresentModesKHR(
+                    physical_device,
+                    surface,
+                    &mut present_mode_count,
+                    null_mut(),
+                );
+                let mut present_modes = Vec::with_capacity(present_mode_count as usize);
+                vkGetPhysicalDeviceSurfacePresentModesKHR(
+                    physical_device,
+                    surface,
+                    &mut present_mode_count,
+                    present_modes.as_mut_ptr(),
+                );
+                present_modes.set_len(present_mode_count as usize);
+
+                (capabilities.assume_init(), formats, present_modes)
+            };
 
             // Choose the settings for the swap chain.
             let surface_format = surface_formats
@@ -964,7 +1013,7 @@ fn main() {
             if result != VK_SUCCESS {
                 panic!("Failed to allocate memory for the vertex buffer.");
             }
-            
+
             vkBindBufferMemory(device, buffer, memory, 0);
 
             let allocate_info = VkCommandBufferAllocateInfo {
@@ -1006,12 +1055,12 @@ fn main() {
                 1,
                 &buffer_copy_region,
             );
-            
+
             let result = vkEndCommandBuffer(command_buffer);
             if result != VK_SUCCESS {
                 panic!("Failed to end the command buffer for copying the staging buffer!");
             }
-            
+
             let submit_info = VkSubmitInfo {
                 sType: VK_STRUCTURE_TYPE_SUBMIT_INFO,
                 pNext: null(),
@@ -1021,26 +1070,26 @@ fn main() {
                 commandBufferCount: 1,
                 pCommandBuffers: &command_buffer,
                 signalSemaphoreCount: 0,
-                pSignalSemaphores: null()
+                pSignalSemaphores: null(),
             };
-            
+
             let result = vkQueueSubmit(graphics_queue, 1, &submit_info, null_mut());
             if result != VK_SUCCESS {
                 panic!("Failed to submit the commands for copying the staging buffer!");
             }
-            
+
             vkQueueWaitIdle(graphics_queue);
 
             vkDestroyBuffer(device, staging_buffer, null());
             vkFreeMemory(device, staging_buffer_memory, null());
-            
+
             (buffer, memory)
         };
 
         while !window.should_close() {
             glfw.poll_events();
         }
-        
+
         vkDestroyBuffer(device, vertex_buffer, null());
         vkFreeMemory(device, vertex_buffer_memory, null());
         vkDestroyCommandPool(device, command_pool, null());
