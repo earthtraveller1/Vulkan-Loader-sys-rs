@@ -852,6 +852,24 @@ fn main() {
             pool
         };
 
+        let command_buffer = {
+            let allocate_info = VkCommandBufferAllocateInfo {
+                sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                pNext: null(),
+                commandPool: command_pool,
+                level: VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                commandBufferCount: 1,
+            };
+
+            let mut buffer = null_mut();
+            let result = vkAllocateCommandBuffers(device, &allocate_info, &mut buffer);
+            if result != VK_SUCCESS {
+                panic!("Failed to allocate the primary command buffer!");
+            }
+
+            buffer
+        };
+
         let vertices = [0.0f32, -0.5f32, 0.5f32, 0.5f32, -0.5f32, 0.5f32];
 
         let (vertex_buffer, vertex_buffer_memory) = {
@@ -1123,9 +1141,6 @@ fn main() {
         };
 
         while !window.should_close() {
-            vkWaitForFences(device, 1, &in_flight_fence, VK_TRUE, u64::MAX);
-            vkResetFences(device, 1, &in_flight_fence);
-
             glfw.poll_events();
         }
 
