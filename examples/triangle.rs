@@ -1,3 +1,11 @@
+//! A basic Vulkan example that uses this crate to display a triangle on the screen. It is loosely based on the tutorial on
+//! [vulkan-tutorial.com](https://vulkan-tutorial.com), with the exception that the use of subroutines and other abstractions
+//! are kept to an absolute minimum in order to fully demonstrate the order in which things are happening.
+//!
+//! This program works by wrapping everything in the `main` function in an `unsafe` block. This effectively makes the entire
+//! program unsafe. This is not recommended for practical applications, but for this simple program, it works and makes certain
+//! things convenient.
+
 use std::{
     ffi::{CStr, CString},
     fs::File,
@@ -6,23 +14,31 @@ use std::{
     ptr::{null, null_mut},
 };
 
-/// Designed to be a basic Vulkan application.
-/// Would probably display a triangle some time in the future, but for now it
-/// is just Vulkan boilerplate code.
+// All of the Vulkan symbols are prefixed with "vk", "VK_", or "Vk", so we might as well just make all of them available in
+// our namespace.
 use vulkan_loader_sys::*;
 
+// Set this to false to disable validation layers.
 const ENABLE_VALIDATION: bool = true;
 
+// You can play around with the width and height of the Window.
 const WINDOW_WIDTH: u32 = 800;
 const WINDOW_HEIGHT: u32 = 600;
 
+// If you have no idea what this is, DO NOT CHANGE IT. If you do have an idea of what this is, you should know why you shouldn't
+// change it.
 const SWAP_CHAIN_EXTENSION: *const i8 = VK_KHR_SWAPCHAIN_EXTENSION_NAME.as_ptr() as *const i8;
 
 fn main() {
     unsafe {
+        // We are using GLFW for windowing here, as it removes the complications that arises when porting this example
+        // across multiple platforms. In real world applications you _may_ choose to use a different Windowing library,
+        // or just outright interface directly with the operating system's native windowing system instead. I mean, you've
+        // chosen to use this crate, after all, right?
         let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).expect("Failed to initialize GLFW.");
         glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::NoApi));
-        glfw.window_hint(glfw::WindowHint::Resizable(false)); // Handling resizing is a bit complicated in Vulkan, so I'll disable it for now.
+        // Handling resizing is a bit complicated in Vulkan, so I'll disable it for now.
+        glfw.window_hint(glfw::WindowHint::Resizable(false));
 
         let instance = {
             let application_info = VkApplicationInfo {
