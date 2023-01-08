@@ -1141,6 +1141,98 @@ fn main() {
         };
 
         while !window.should_close() {
+            vkWaitForFences(device, 1, &in_flight_fence, VK_TRUE, u64::MAX);
+            vkResetFences(device, 1, &in_flight_fence);
+
+            let mut image_index = 0;
+            vkAcquireNextImageKHR(
+                device,
+                swap_chain,
+                u64::MAX,
+                image_available_semaphore,
+                null_mut(),
+                &mut image_index,
+            );
+
+            vkResetCommandBuffer(command_buffer, 0);
+
+            let begin_info = VkCommandBufferBeginInfo {
+                sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                pNext: null(),
+                flags: 0,
+                pInheritanceInfo: null(),
+            };
+
+            let result = vkBeginCommandBuffer(command_buffer, &begin_info);
+            if result != VK_SUCCESS {
+                panic!("Failed to start recording the command buffer.");
+            }
+
+            let clear_value = VkClearValue {
+                color: VkClearColorValue {
+                    float32: [0.0, 0.0, 0.0, 1.0],
+                },
+            };
+
+            let render_pass_begin_info = VkRenderPassBeginInfo {
+                sType: VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                pNext: null(),
+                renderPass: render_pass,
+                framebuffer: swap_chain_framebuffers[image_index as usize],
+                renderArea: VkRect2D {
+                    offset: VkOffset2D { x: 0, y: 0 },
+                    extent: swap_chain_extent,
+                },
+                clearValueCount: 1,
+                pClearValues: &clear_value,
+            };
+
+            vkCmdBeginRenderPass(
+                command_buffer,
+                &render_pass_begin_info,
+                VK_SUBPASS_CONTENTS_INLINE,
+            );
+
+            vkCmdBindPipeline(
+                command_buffer,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                graphics_pipeline,
+            );
+
+            let vertex_buffer_offset = 0;
+            vkCmdBindVertexBuffers(command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
+
+            vkCmdDraw(command_buffer, vertices.len() as u32, 1, 0, 0);
+
+            vkCmdEndRenderPass(command_buffer);
+
+            let result = vkEndCommandBuffer(command_buffer);
+            if result != VK_SUCCESS {
+                panic!("Failed to stop recording the command buffer!");
+            }
+
+            let submit_wait_stages = [VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT];
+
+            let submit_info = VkSubmitInfo {
+                sType: VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                pNext: null(),
+                waitSemaphoreCount: 1,
+                pWaitSemaphores: &image_available_semaphore,
+                pWaitDstStageMask: submit_wait_stages.as_ptr(),
+                signalSemaphoreCount: 1,
+                pSignalSemaphores: &render_finished_semaphore,
+                commandBufferCount: 1,
+                pCommandBuffers: &command_buffer,
+            };
+
+            let result = vkQueueSubmit(graphics_queue, 1, &submit_info, in_flight_fence);
+            if result != VK_SUCCESS {
+                panic!(
+                    "Failed to submit the command buffer. Vulkan error {}",
+                    result
+                );
+            }
+
             glfw.poll_events();
         }
 
