@@ -1243,8 +1243,23 @@ fn main() {
                 );
             }
 
+            let present_info = VkPresentInfoKHR {
+                sType: VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+                pNext: null(),
+                waitSemaphoreCount: 1,
+                pWaitSemaphores: &render_finished_semaphore,
+                swapchainCount: 1,
+                pSwapchains: &swap_chain,
+                pImageIndices: &image_index,
+                pResults: null_mut(),
+            };
+
+            vkQueuePresentKHR(present_queue, &present_info);
+
             glfw.poll_events();
         }
+
+        vkDeviceWaitIdle(device);
 
         vkDestroyFence(device, in_flight_fence, null());
         vkDestroySemaphore(device, render_finished_semaphore, null());
