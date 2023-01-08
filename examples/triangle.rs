@@ -124,50 +124,51 @@ fn main() {
             );
             physical_devices.set_len(physical_device_count.try_into().unwrap());
 
-            let find_queue_families = |device: VkPhysicalDevice| -> (Option<u32>, Option<u32>) {
-                let mut queue_family_count = 0;
-                vkGetPhysicalDeviceQueueFamilyProperties(
-                    device,
-                    &mut queue_family_count,
-                    null_mut(),
-                );
-                let mut queue_family_properties =
-                    Vec::with_capacity(queue_family_count.try_into().unwrap());
-                vkGetPhysicalDeviceQueueFamilyProperties(
-                    device,
-                    &mut queue_family_count,
-                    queue_family_properties.as_mut_ptr(),
-                );
-                queue_family_properties.set_len(queue_family_count.try_into().unwrap());
-
-                let mut graphics_family = None;
-                let mut present_family = None;
-
-                for i in 0..queue_family_properties.len() {
-                    if (queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT as u32) != 0 {
-                        graphics_family = Some(i.try_into().unwrap());
-                    }
-
-                    let mut present_support = VK_FALSE;
-                    vkGetPhysicalDeviceSurfaceSupportKHR(
-                        device,
-                        i.try_into().unwrap(),
-                        surface,
-                        &mut present_support,
-                    );
-
-                    if present_support == VK_TRUE {
-                        present_family = Some(i.try_into().unwrap());
-                    }
-                }
-
-                (graphics_family, present_family)
-            };
-
             let physical_device = *physical_devices
                 .iter()
                 .find(|device| {
-                    let (graphics_family, present_family) = find_queue_families(**device);
+                    let (graphics_family_present, present_family_present) = {
+                        let mut queue_family_count = 0;
+                        vkGetPhysicalDeviceQueueFamilyProperties(
+                            **device,
+                            &mut queue_family_count,
+                            null_mut(),
+                        );
+                        let mut queue_family_properties =
+                            Vec::with_capacity(queue_family_count.try_into().unwrap());
+                        vkGetPhysicalDeviceQueueFamilyProperties(
+                            **device,
+                            &mut queue_family_count,
+                            queue_family_properties.as_mut_ptr(),
+                        );
+                        queue_family_properties.set_len(queue_family_count.try_into().unwrap());
+
+                        let mut graphics_family = false;
+                        let mut present_family = false;
+
+                        for i in 0..queue_family_properties.len() {
+                            if (queue_family_properties[i].queueFlags
+                                & VK_QUEUE_GRAPHICS_BIT as u32)
+                                != 0
+                            {
+                                graphics_family = true;
+                            }
+
+                            let mut present_support = VK_FALSE;
+                            vkGetPhysicalDeviceSurfaceSupportKHR(
+                                **device,
+                                i.try_into().unwrap(),
+                                surface,
+                                &mut present_support,
+                            );
+
+                            if present_support == VK_TRUE {
+                                present_family = true;
+                            }
+                        }
+
+                        (graphics_family, present_family)
+                    };
 
                     let mut extension_count = 0;
                     vkEnumerateDeviceExtensionProperties(
@@ -238,15 +239,54 @@ fn main() {
                         (capabilities.assume_init(), formats, present_modes)
                     };
 
-                    graphics_family.is_some()
-                        && present_family.is_some()
+                    graphics_family_present
+                        && present_family_present
                         && swap_chain_extension.is_some()
                         && !swap_chain_formats.is_empty()
                         && !present_modes.is_empty()
                 })
                 .expect("Could not find an adequate physical device.");
 
-            let (graphics_family, present_family) = find_queue_families(physical_device);
+            let (graphics_family, present_family) = {
+                let mut queue_family_count = 0;
+                vkGetPhysicalDeviceQueueFamilyProperties(
+                    physical_device,
+                    &mut queue_family_count,
+                    null_mut(),
+                );
+                let mut queue_family_properties =
+                    Vec::with_capacity(queue_family_count.try_into().unwrap());
+                vkGetPhysicalDeviceQueueFamilyProperties(
+                    physical_device,
+                    &mut queue_family_count,
+                    queue_family_properties.as_mut_ptr(),
+                );
+                queue_family_properties.set_len(queue_family_count.try_into().unwrap());
+
+                let mut graphics_family = None;
+                let mut present_family = None;
+
+                for i in 0..queue_family_properties.len() {
+                    if (queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT as u32) != 0 {
+                        graphics_family = Some(i.try_into().unwrap());
+                    }
+
+                    let mut present_support = VK_FALSE;
+                    vkGetPhysicalDeviceSurfaceSupportKHR(
+                        physical_device,
+                        i.try_into().unwrap(),
+                        surface,
+                        &mut present_support,
+                    );
+
+                    if present_support == VK_TRUE {
+                        present_family = Some(i.try_into().unwrap());
+                    }
+                }
+
+                (graphics_family, present_family)
+            };
+
             let graphics_family = graphics_family.unwrap();
             let present_family = present_family.unwrap();
 
