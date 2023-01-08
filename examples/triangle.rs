@@ -1106,10 +1106,30 @@ fn main() {
             (image_available, render_finished)
         };
 
+        let in_flight_fence = {
+            let create_info = VkFenceCreateInfo {
+                sType: VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+                pNext: null(),
+                flags: VK_FENCE_CREATE_SIGNALED_BIT,
+            };
+
+            let mut fence = null_mut();
+            let result = vkCreateFence(device, &create_info, null(), &mut fence);
+            if result != VK_SUCCESS {
+                panic!("Failed to create the fence.");
+            }
+
+            fence
+        };
+
         while !window.should_close() {
+            vkWaitForFences(device, 1, &in_flight_fence, VK_TRUE, u64::MAX);
+            vkResetFences(device, 1, &in_flight_fence);
+
             glfw.poll_events();
         }
 
+        vkDestroyFence(device, in_flight_fence, null());
         vkDestroySemaphore(device, render_finished_semaphore, null());
         vkDestroySemaphore(device, image_available_semaphore, null());
         vkDestroyBuffer(device, vertex_buffer, null());
