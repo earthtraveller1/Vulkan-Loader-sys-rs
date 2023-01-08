@@ -1086,10 +1086,32 @@ fn main() {
             (buffer, memory)
         };
 
+        let (image_available_semaphore, render_finished_semaphore) = {
+            let create_info = VkSemaphoreCreateInfo {
+                sType: VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+                pNext: null(),
+                flags: 0,
+            };
+
+            let mut image_available = null_mut();
+            let mut render_finished = null_mut();
+
+            let result = vkCreateSemaphore(device, &create_info, null(), &mut image_available);
+            let result2 = vkCreateSemaphore(device, &create_info, null(), &mut render_finished);
+
+            if result != VK_SUCCESS || result2 != VK_SUCCESS {
+                panic!("Failed to create semaphores.");
+            }
+
+            (image_available, render_finished)
+        };
+
         while !window.should_close() {
             glfw.poll_events();
         }
 
+        vkDestroySemaphore(device, render_finished_semaphore, null());
+        vkDestroySemaphore(device, image_available_semaphore, null());
         vkDestroyBuffer(device, vertex_buffer, null());
         vkFreeMemory(device, vertex_buffer_memory, null());
         vkDestroyCommandPool(device, command_pool, null());
