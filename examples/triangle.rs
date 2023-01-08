@@ -510,6 +510,16 @@ fn main() {
                 layout: VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             };
 
+            let subpass_dependency = VkSubpassDependency {
+                srcSubpass: VK_SUBPASS_EXTERNAL as u32,
+                dstSubpass: 0,
+                srcStageMask: VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                srcAccessMask: 0,
+                dstStageMask: VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                dstAccessMask: VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                dependencyFlags: 0,
+            };
+
             let subpass = VkSubpassDescription {
                 flags: 0,
                 pipelineBindPoint: VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -531,8 +541,8 @@ fn main() {
                 pAttachments: &color_attachment,
                 subpassCount: 1,
                 pSubpasses: &subpass,
-                dependencyCount: 0,
-                pDependencies: null(),
+                dependencyCount: 1,
+                pDependencies: &subpass_dependency,
             };
 
             let mut render_pass = null_mut();
