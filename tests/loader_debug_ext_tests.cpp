@@ -34,9 +34,9 @@
 //
 
 // Prototype declaration for callback so we can use it in class utility methods
-static VkBool32 VKAPI_CALL test_DebugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType,
-                                                    uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix,
-                                                    const char* pMessage, void* pUserData);
+VkBool32 VKAPI_CALL test_DebugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object,
+                                             size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage,
+                                             void* pUserData);
 
 class DebugReportTest : public ::testing::Test {
    public:
@@ -121,9 +121,10 @@ class DebugReportTest : public ::testing::Test {
 };
 
 // This is the actual callback prototyped above.
-static VkBool32 VKAPI_CALL test_DebugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType,
-                                                    uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix,
-                                                    const char* pMessage, void* pUserData) {
+VkBool32 VKAPI_CALL test_DebugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType,
+                                             [[maybe_unused]] uint64_t object, [[maybe_unused]] size_t location,
+                                             [[maybe_unused]] int32_t messageCode, [[maybe_unused]] const char* pLayerPrefix,
+                                             const char* pMessage, void* pUserData) {
     DebugReportTest* debug_report_test = reinterpret_cast<DebugReportTest*>(pUserData);
     debug_report_test->VerifyExpected(flags, objectType, pMessage);
     return VK_FALSE;
@@ -360,9 +361,9 @@ TEST_F(ManualReport, InfoMessage) {
 //
 
 // Prototype declaration for callback so we can use it in class utility methods
-static VkBool32 VKAPI_CALL test_DebugUtilsCallback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
-                                                   VkDebugUtilsMessageTypeFlagsEXT message_types,
-                                                   const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
+VkBool32 VKAPI_CALL test_DebugUtilsCallback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
+                                            VkDebugUtilsMessageTypeFlagsEXT message_types,
+                                            const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
 
 class DebugUtilTest : public ::testing::Test {
    public:
@@ -461,9 +462,9 @@ class DebugUtilTest : public ::testing::Test {
 
 // This is the actual callback prototyped above.
 
-static VkBool32 VKAPI_CALL test_DebugUtilsCallback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
-                                                   VkDebugUtilsMessageTypeFlagsEXT message_types,
-                                                   const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data) {
+VkBool32 VKAPI_CALL test_DebugUtilsCallback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
+                                            VkDebugUtilsMessageTypeFlagsEXT message_types,
+                                            const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data) {
     DebugUtilTest* debug_util_test = reinterpret_cast<DebugUtilTest*>(user_data);
     debug_util_test->VerifyExpected(message_types, message_severity, callback_data->pMessage, callback_data);
     return VK_FALSE;
@@ -855,7 +856,7 @@ void CheckDeviceFunctions(FrameworkEnvironment& env, bool use_GIPA, bool enable_
     if (enable_debug_extensions) {
         inst.create_info.add_extension("VK_EXT_debug_utils");
     }
-    setup_WSI_in_create_instance(inst);
+    inst.create_info.setup_WSI();
     ASSERT_NO_FATAL_FAILURE(inst.CheckCreate());
 
     auto phys_dev = inst.GetPhysDev();
@@ -877,7 +878,7 @@ void CheckDeviceFunctions(FrameworkEnvironment& env, bool use_GIPA, bool enable_
     DeviceFunctions dev_funcs{env.vulkan_functions, dev};
 
     VkSurfaceKHR surface{};
-    ASSERT_NO_FATAL_FAILURE(create_surface(inst, surface));
+    ASSERT_EQ(VK_SUCCESS, create_surface(inst, surface));
 
     VkSwapchainCreateInfoKHR info{};
     info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -886,10 +887,19 @@ void CheckDeviceFunctions(FrameworkEnvironment& env, bool use_GIPA, bool enable_
     VkSwapchainKHR swapchain{};
     ASSERT_EQ(VK_SUCCESS, dev_funcs.vkCreateSwapchainKHR(dev.dev, &info, nullptr, &swapchain));
 
+    // Debug marker
     PFN_vkDebugMarkerSetObjectTagEXT DebugMarkerSetObjectTagEXT;
     DebugMarkerSetObjectTagEXT = use_GIPA ? inst.load("vkDebugMarkerSetObjectTagEXT") : dev.load("vkDebugMarkerSetObjectTagEXT");
     PFN_vkDebugMarkerSetObjectNameEXT DebugMarkerSetObjectNameEXT;
     DebugMarkerSetObjectNameEXT = use_GIPA ? inst.load("vkDebugMarkerSetObjectNameEXT") : dev.load("vkDebugMarkerSetObjectNameEXT");
+    PFN_vkCmdDebugMarkerBeginEXT CmdDebugMarkerBeginEXT =
+        use_GIPA ? inst.load("vkCmdDebugMarkerBeginEXT") : dev.load("vkCmdDebugMarkerBeginEXT");
+    PFN_vkCmdDebugMarkerEndEXT CmdDebugMarkerEndEXT =
+        use_GIPA ? inst.load("vkCmdDebugMarkerEndEXT") : dev.load("vkCmdDebugMarkerEndEXT");
+    PFN_vkCmdDebugMarkerInsertEXT CmdDebugMarkerInsertEXT =
+        use_GIPA ? inst.load("vkCmdDebugMarkerInsertEXT") : dev.load("vkCmdDebugMarkerInsertEXT");
+
+    // Debug utils
     PFN_vkSetDebugUtilsObjectNameEXT SetDebugUtilsObjectNameEXT;
     SetDebugUtilsObjectNameEXT = use_GIPA ? inst.load("vkSetDebugUtilsObjectNameEXT") : dev.load("vkSetDebugUtilsObjectNameEXT");
     PFN_vkSetDebugUtilsObjectTagEXT SetDebugUtilsObjectTagEXT;
@@ -909,40 +919,67 @@ void CheckDeviceFunctions(FrameworkEnvironment& env, bool use_GIPA, bool enable_
     PFN_vkCmdInsertDebugUtilsLabelEXT CmdInsertDebugUtilsLabelEXT;
     CmdInsertDebugUtilsLabelEXT = use_GIPA ? inst.load("vkCmdInsertDebugUtilsLabelEXT") : dev.load("vkCmdInsertDebugUtilsLabelEXT");
 
+    // Debug marker functions - should always be found when using GIPA but when using GDPA found only when the extension is enabled
     if (use_GIPA) {
-        // When querying from GIPA, these functions should always be found
         ASSERT_TRUE(nullptr != DebugMarkerSetObjectTagEXT);
         ASSERT_TRUE(nullptr != DebugMarkerSetObjectNameEXT);
-        // When querying from GIPA, these functions are found only if the extensions were enabled
-        ASSERT_EQ(enable_debug_extensions, nullptr != SetDebugUtilsObjectNameEXT);
-        ASSERT_EQ(enable_debug_extensions, nullptr != SetDebugUtilsObjectTagEXT);
-        ASSERT_EQ(enable_debug_extensions, nullptr != QueueBeginDebugUtilsLabelEXT);
-        ASSERT_EQ(enable_debug_extensions, nullptr != QueueEndDebugUtilsLabelEXT);
-        ASSERT_EQ(enable_debug_extensions, nullptr != QueueInsertDebugUtilsLabelEXT);
-        ASSERT_EQ(enable_debug_extensions, nullptr != CmdBeginDebugUtilsLabelEXT);
-        ASSERT_EQ(enable_debug_extensions, nullptr != CmdEndDebugUtilsLabelEXT);
-        ASSERT_EQ(enable_debug_extensions, nullptr != CmdInsertDebugUtilsLabelEXT);
+        ASSERT_TRUE(nullptr != CmdDebugMarkerBeginEXT);
+        ASSERT_TRUE(nullptr != CmdDebugMarkerEndEXT);
+        ASSERT_TRUE(nullptr != CmdDebugMarkerInsertEXT);
     } else {
-        // When querying from GDPA, these functions are found only if the extensions were enabled
         ASSERT_EQ(enable_debug_extensions, nullptr != DebugMarkerSetObjectTagEXT);
         ASSERT_EQ(enable_debug_extensions, nullptr != DebugMarkerSetObjectNameEXT);
-        // When querying from GDPA, these functions should always be found
-        ASSERT_TRUE(nullptr != SetDebugUtilsObjectNameEXT);
-        ASSERT_TRUE(nullptr != SetDebugUtilsObjectTagEXT);
-        ASSERT_TRUE(nullptr != QueueBeginDebugUtilsLabelEXT);
-        ASSERT_TRUE(nullptr != QueueEndDebugUtilsLabelEXT);
-        ASSERT_TRUE(nullptr != QueueInsertDebugUtilsLabelEXT);
-        ASSERT_TRUE(nullptr != CmdBeginDebugUtilsLabelEXT);
-        ASSERT_TRUE(nullptr != CmdEndDebugUtilsLabelEXT);
-        ASSERT_TRUE(nullptr != CmdInsertDebugUtilsLabelEXT);
+        ASSERT_EQ(enable_debug_extensions, nullptr != CmdDebugMarkerBeginEXT);
+        ASSERT_EQ(enable_debug_extensions, nullptr != CmdDebugMarkerEndEXT);
+        ASSERT_EQ(enable_debug_extensions, nullptr != CmdDebugMarkerInsertEXT);
     }
-    VkDebugUtilsObjectNameInfoEXT obj_name_info{};
-    obj_name_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-    obj_name_info.objectHandle = (uint64_t)swapchain;
-    obj_name_info.objectType = VK_OBJECT_TYPE_SWAPCHAIN_KHR;
-    obj_name_info.pObjectName = " Your mom!";
-    if (SetDebugUtilsObjectNameEXT) SetDebugUtilsObjectNameEXT(dev.dev, &obj_name_info);
 
+    // Debug utils functions - should only be found if the extension was enabled (because its instance level)
+    ASSERT_EQ(enable_debug_extensions, nullptr != SetDebugUtilsObjectNameEXT);
+    ASSERT_EQ(enable_debug_extensions, nullptr != SetDebugUtilsObjectTagEXT);
+    ASSERT_EQ(enable_debug_extensions, nullptr != QueueBeginDebugUtilsLabelEXT);
+    ASSERT_EQ(enable_debug_extensions, nullptr != QueueEndDebugUtilsLabelEXT);
+    ASSERT_EQ(enable_debug_extensions, nullptr != QueueInsertDebugUtilsLabelEXT);
+    ASSERT_EQ(enable_debug_extensions, nullptr != CmdBeginDebugUtilsLabelEXT);
+    ASSERT_EQ(enable_debug_extensions, nullptr != CmdEndDebugUtilsLabelEXT);
+    ASSERT_EQ(enable_debug_extensions, nullptr != CmdInsertDebugUtilsLabelEXT);
+
+    if (SetDebugUtilsObjectNameEXT) {
+        VkDebugUtilsObjectNameInfoEXT obj_name_info{};
+        obj_name_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        obj_name_info.objectHandle = (uint64_t)swapchain;
+        obj_name_info.objectType = VK_OBJECT_TYPE_SWAPCHAIN_KHR;
+        obj_name_info.pObjectName = " Your mom!";
+        ASSERT_EQ(VK_SUCCESS, SetDebugUtilsObjectNameEXT(dev.dev, &obj_name_info));
+
+        obj_name_info.objectHandle = (uint64_t)(uintptr_t)surface;
+        obj_name_info.objectType = VK_OBJECT_TYPE_SURFACE_KHR;
+        obj_name_info.pObjectName = " Your moms surface!";
+        ASSERT_EQ(VK_SUCCESS, SetDebugUtilsObjectNameEXT(dev.dev, &obj_name_info));
+
+        obj_name_info.objectHandle = (uint64_t)(uintptr_t)phys_dev;
+        obj_name_info.objectType = VK_OBJECT_TYPE_PHYSICAL_DEVICE;
+        obj_name_info.pObjectName = "Physical Device AAAAAAAAA";
+        ASSERT_EQ(VK_SUCCESS, SetDebugUtilsObjectNameEXT(dev.dev, &obj_name_info));
+
+        obj_name_info.objectHandle = (uint64_t)(uintptr_t)inst.inst;
+        obj_name_info.objectType = VK_OBJECT_TYPE_INSTANCE;
+        ASSERT_EQ(VK_SUCCESS, SetDebugUtilsObjectNameEXT(dev.dev, &obj_name_info));
+    }
+    if (SetDebugUtilsObjectTagEXT) {
+        VkDebugUtilsObjectTagInfoEXT utils_object_tag{};
+        utils_object_tag.objectHandle = (uint64_t)(uintptr_t)inst.inst;
+        utils_object_tag.objectType = VK_OBJECT_TYPE_INSTANCE;
+        ASSERT_EQ(VK_SUCCESS, SetDebugUtilsObjectTagEXT(dev.dev, &utils_object_tag));
+
+        utils_object_tag.objectHandle = (uint64_t)(uintptr_t)phys_dev;
+        utils_object_tag.objectType = VK_OBJECT_TYPE_PHYSICAL_DEVICE;
+        ASSERT_EQ(VK_SUCCESS, SetDebugUtilsObjectTagEXT(dev.dev, &utils_object_tag));
+
+        utils_object_tag.objectHandle = (uint64_t)surface;
+        utils_object_tag.objectType = VK_OBJECT_TYPE_SURFACE_KHR;
+        ASSERT_EQ(VK_SUCCESS, SetDebugUtilsObjectTagEXT(dev.dev, &utils_object_tag));
+    }
     VkDebugMarkerObjectTagInfoEXT marker_object_tag{};
     VkDebugMarkerObjectNameInfoEXT marker_object_name{};
     if (use_GIPA && !enable_debug_extensions) {
@@ -950,12 +987,41 @@ void CheckDeviceFunctions(FrameworkEnvironment& env, bool use_GIPA, bool enable_
         ASSERT_DEATH(DebugMarkerSetObjectTagEXT(dev.dev, &marker_object_tag), "");
         ASSERT_DEATH(DebugMarkerSetObjectNameEXT(dev.dev, &marker_object_name), "");
     } else {
-        if (DebugMarkerSetObjectTagEXT) DebugMarkerSetObjectTagEXT(dev.dev, &marker_object_tag);
-        if (DebugMarkerSetObjectNameEXT) DebugMarkerSetObjectNameEXT(dev.dev, &marker_object_name);
+        if (DebugMarkerSetObjectTagEXT) {
+            marker_object_tag.object = (uint64_t)(uintptr_t)swapchain;
+            marker_object_tag.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_SWAPCHAIN_KHR_EXT;
+            ASSERT_EQ(VK_SUCCESS, DebugMarkerSetObjectTagEXT(dev.dev, &marker_object_tag));
+
+            marker_object_tag.object = (uint64_t)(uintptr_t)phys_dev;
+            marker_object_tag.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_PHYSICAL_DEVICE_EXT;
+            ASSERT_EQ(VK_SUCCESS, DebugMarkerSetObjectTagEXT(dev.dev, &marker_object_tag));
+
+            marker_object_tag.object = (uint64_t)surface;
+            marker_object_tag.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_SURFACE_KHR_EXT;
+            ASSERT_EQ(VK_SUCCESS, DebugMarkerSetObjectTagEXT(dev.dev, &marker_object_tag));
+
+            marker_object_tag.object = (uint64_t)(uintptr_t)inst.inst;
+            marker_object_tag.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_INSTANCE_EXT;
+            ASSERT_EQ(VK_SUCCESS, DebugMarkerSetObjectTagEXT(dev.dev, &marker_object_tag));
+        }
+        if (DebugMarkerSetObjectNameEXT) {
+            marker_object_name.object = (uint64_t)(uintptr_t)swapchain;
+            marker_object_name.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_SWAPCHAIN_KHR_EXT;
+            ASSERT_EQ(VK_SUCCESS, DebugMarkerSetObjectNameEXT(dev.dev, &marker_object_name));
+
+            marker_object_name.object = (uint64_t)(uintptr_t)phys_dev;
+            marker_object_name.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_PHYSICAL_DEVICE_EXT;
+            ASSERT_EQ(VK_SUCCESS, DebugMarkerSetObjectNameEXT(dev.dev, &marker_object_name));
+
+            marker_object_name.object = (uint64_t)surface;
+            marker_object_name.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_SURFACE_KHR_EXT;
+            ASSERT_EQ(VK_SUCCESS, DebugMarkerSetObjectNameEXT(dev.dev, &marker_object_name));
+
+            marker_object_name.object = (uint64_t)(uintptr_t)inst.inst;
+            marker_object_name.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_INSTANCE_EXT;
+            ASSERT_EQ(VK_SUCCESS, DebugMarkerSetObjectNameEXT(dev.dev, &marker_object_name));
+        }
     }
-    if (SetDebugUtilsObjectNameEXT) SetDebugUtilsObjectNameEXT(dev.dev, &obj_name_info);
-    VkDebugUtilsObjectTagInfoEXT utils_object_tag{};
-    if (SetDebugUtilsObjectTagEXT) SetDebugUtilsObjectTagEXT(dev.dev, &utils_object_tag);
     VkQueue queue{};
     dev.functions->vkGetDeviceQueue(dev.dev, 0, 0, &queue);
     VkDebugUtilsLabelEXT utils_label{};
@@ -983,10 +1049,9 @@ void CheckDeviceFunctions(FrameworkEnvironment& env, bool use_GIPA, bool enable_
 
 TEST(GetDeviceProcAddr, DebugFuncsWithTerminator) {
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
-    setup_WSI_in_ICD(env.get_test_icd());
-    env.get_test_icd().physical_devices.emplace_back("physical_device_0");
-    env.get_test_icd().physical_devices.at(0).add_extensions({"VK_KHR_swapchain"});
+    auto& driver =
+        env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA)).setup_WSI().add_physical_device("physical_device_0");
+    driver.physical_devices.at(0).add_extensions({"VK_KHR_swapchain"});
     // Hardware doesn't support the debug extensions
 
     // Use getDeviceProcAddr & vary enabling the debug extensions
@@ -998,8 +1063,8 @@ TEST(GetDeviceProcAddr, DebugFuncsWithTerminator) {
     ASSERT_NO_FATAL_FAILURE(CheckDeviceFunctions(env, true, true));
 
     // Now set the hardware to support the extensions and run the situations again
-    env.get_test_icd().physical_devices.at(0).add_extensions({"VK_EXT_debug_marker"});
-    env.get_test_icd().add_instance_extension("VK_EXT_debug_utils");
+    driver.add_instance_extension("VK_EXT_debug_utils");
+    driver.physical_devices.at(0).add_extensions({"VK_EXT_debug_marker"});
 
     // Use getDeviceProcAddr & vary enabling the debug extensions
     ASSERT_NO_FATAL_FAILURE(CheckDeviceFunctions(env, false, false));
@@ -1008,4 +1073,106 @@ TEST(GetDeviceProcAddr, DebugFuncsWithTerminator) {
     // Use getInstanceProcAddr & vary enabling the debug extensions
     ASSERT_NO_FATAL_FAILURE(CheckDeviceFunctions(env, true, false));
     ASSERT_NO_FATAL_FAILURE(CheckDeviceFunctions(env, true, true));
+}
+
+TEST(DebugUtils, WrappingLayer) {
+    FrameworkEnvironment env{};
+    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2))
+        .set_min_icd_interface_version(5)
+        .add_physical_device(PhysicalDevice{}.add_extension(VK_EXT_DEBUG_MARKER_EXTENSION_NAME).finish())
+        .add_instance_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+
+    const char* wrap_objects_name = "VK_LAYER_LUNARG_wrap_objects";
+    env.add_explicit_layer(ManifestLayer{}.add_layer(ManifestLayer::LayerDescription{}
+                                                         .set_name(wrap_objects_name)
+                                                         .set_lib_path(TEST_LAYER_WRAP_OBJECTS)
+                                                         .set_disable_environment("DISABLE_ME")
+                                                         .add_instance_extension({VK_EXT_DEBUG_UTILS_EXTENSION_NAME})),
+                           "wrap_objects_layer.json");
+
+    InstWrapper inst{env.vulkan_functions};
+    inst.create_info.add_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    inst.create_info.add_extension(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+    inst.create_info.add_layer(wrap_objects_name);
+    inst.CheckCreate();
+    DebugUtilsWrapper log{inst};
+    CreateDebugUtilsMessenger(log);
+
+    auto phys_dev = inst.GetPhysDev();
+    DeviceWrapper device{inst};
+    device.create_info.add_extension(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
+    device.CheckCreate(phys_dev);
+    {
+        PFN_vkSetDebugUtilsObjectNameEXT SetDebugUtilsObjectNameEXT = inst.load("vkSetDebugUtilsObjectNameEXT");
+
+        VkDebugUtilsObjectNameInfoEXT info = {};
+        info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        info.objectType = VK_OBJECT_TYPE_DEVICE;
+        info.objectHandle = (uint64_t)device.dev;
+        info.pObjectName = "Test Name";
+        ASSERT_EQ(VK_SUCCESS, SetDebugUtilsObjectNameEXT(device, &info));
+
+        info.objectType = VK_OBJECT_TYPE_PHYSICAL_DEVICE;
+        info.objectHandle = (uint64_t)phys_dev;
+        ASSERT_EQ(VK_SUCCESS, SetDebugUtilsObjectNameEXT(device, &info));
+
+        info.objectType = VK_OBJECT_TYPE_INSTANCE;
+        info.objectHandle = (uint64_t)inst.inst;
+        ASSERT_EQ(VK_SUCCESS, SetDebugUtilsObjectNameEXT(device, &info));
+    }
+    {
+        PFN_vkSetDebugUtilsObjectTagEXT SetDebugUtilsObjectTagEXT = inst.load("vkSetDebugUtilsObjectTagEXT");
+
+        VkDebugUtilsObjectTagInfoEXT info = {};
+        info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_TAG_INFO_EXT;
+        info.objectType = VK_OBJECT_TYPE_DEVICE;
+        info.objectHandle = (uint64_t)device.dev;
+        info.pTag = "Test Name";
+        ASSERT_EQ(VK_SUCCESS, SetDebugUtilsObjectTagEXT(device, &info));
+
+        info.objectType = VK_OBJECT_TYPE_PHYSICAL_DEVICE;
+        info.objectHandle = (uint64_t)phys_dev;
+        ASSERT_EQ(VK_SUCCESS, SetDebugUtilsObjectTagEXT(device, &info));
+
+        info.objectType = VK_OBJECT_TYPE_INSTANCE;
+        info.objectHandle = (uint64_t)inst.inst;
+        ASSERT_EQ(VK_SUCCESS, SetDebugUtilsObjectTagEXT(device, &info));
+    }
+    // Debug marker
+    {
+        PFN_vkDebugMarkerSetObjectNameEXT DebugMarkerSetObjectNameEXT = inst.load("vkDebugMarkerSetObjectNameEXT");
+
+        VkDebugMarkerObjectNameInfoEXT info = {};
+        info.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
+        info.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT;
+        info.object = (uint64_t)device.dev;
+        info.pObjectName = "Test Name";
+        ASSERT_EQ(VK_SUCCESS, DebugMarkerSetObjectNameEXT(device, &info));
+
+        info.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_PHYSICAL_DEVICE_EXT;
+        info.object = (uint64_t)phys_dev;
+        ASSERT_EQ(VK_SUCCESS, DebugMarkerSetObjectNameEXT(device, &info));
+
+        info.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_INSTANCE_EXT;
+        info.object = (uint64_t)inst.inst;
+        ASSERT_EQ(VK_SUCCESS, DebugMarkerSetObjectNameEXT(device, &info));
+    }
+    {
+        PFN_vkDebugMarkerSetObjectTagEXT DebugMarkerSetObjectTagEXT = inst.load("vkDebugMarkerSetObjectTagEXT");
+
+        VkDebugMarkerObjectTagInfoEXT info = {};
+        info.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_TAG_INFO_EXT;
+        info.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT;
+        info.object = (uint64_t)device.dev;
+        info.pTag = "Test Name";
+        ASSERT_EQ(VK_SUCCESS, DebugMarkerSetObjectTagEXT(device, &info));
+
+        info.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_PHYSICAL_DEVICE_EXT;
+        info.object = (uint64_t)phys_dev;
+        ASSERT_EQ(VK_SUCCESS, DebugMarkerSetObjectTagEXT(device, &info));
+
+        info.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_INSTANCE_EXT;
+        info.object = (uint64_t)inst.inst;
+        ASSERT_EQ(VK_SUCCESS, DebugMarkerSetObjectTagEXT(device, &info));
+    }
 }

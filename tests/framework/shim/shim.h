@@ -29,6 +29,7 @@
 
 #include "test_util.h"
 
+#include <unordered_set>
 #include <stdlib.h>
 
 #if defined(WIN32)
@@ -44,7 +45,7 @@
 #include <adapters.h>
 #endif
 
-enum class ManifestCategory { implicit_layer, explicit_layer, icd };
+enum class ManifestCategory { implicit_layer, explicit_layer, icd, settings };
 enum class GpuType { unspecified, integrated, discrete, external };
 
 #if defined(WIN32)
@@ -71,8 +72,8 @@ static const char* pnp_registry_path = "SYSTEM\\CurrentControlSet\\Control\\Clas
 
 // Needed for DXGI mocking
 struct KnownDriverData {
-    const char* filename;
-    int vendor_id;
+    const char* filename = nullptr;
+    int vendor_id = 0;
 };
 static std::array<KnownDriverData, 4> known_driver_list = {
 #if defined(_WIN64)
@@ -85,17 +86,12 @@ static std::array<KnownDriverData, 4> known_driver_list = {
 };
 
 struct DXGIAdapter {
-    DXGIAdapter(GpuType gpu_preference, DXGI_ADAPTER_DESC1 desc1, uint32_t adapter_index)
-        : gpu_preference(gpu_preference), desc1(desc1), adapter_index(adapter_index) {}
     GpuType gpu_preference = GpuType::unspecified;
     DXGI_ADAPTER_DESC1 desc1{};
     uint32_t adapter_index = 0;
 };
 
 struct D3DKMT_Adapter {
-    D3DKMT_Adapter() = default;
-    D3DKMT_Adapter(UINT hAdapter, LUID adapter_luid) noexcept : hAdapter(hAdapter), adapter_luid(adapter_luid) {}
-
     D3DKMT_Adapter& add_driver_manifest_path(fs::path const& src);
     D3DKMT_Adapter& add_implicit_layer_manifest_path(fs::path const& src);
     D3DKMT_Adapter& add_explicit_layer_manifest_path(fs::path const& src);
@@ -110,13 +106,15 @@ struct D3DKMT_Adapter {
     D3DKMT_Adapter& add_path(fs::path src, std::vector<std::wstring>& dest);
 };
 
-#elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+#elif COMMON_UNIX_PLATFORMS
 
 struct DirEntry {
-    DIR* directory;
+    DIR* directory = nullptr;
     std::string folder_path;
     std::vector<struct dirent*> contents;
-    size_t current_index;
+    // the current item being read by an app (incremented by readdir, reset to zero by opendir & closedir)
+    size_t current_index = 0;
+    bool is_fake_path = false;  // true when this entry is for folder redirection
 };
 
 #endif
@@ -138,16 +136,20 @@ struct PlatformShim {
     void redirect_all_paths(fs::path const& path);
     void redirect_category(fs::path const& new_path, ManifestCategory category);
 
-    void set_path(ManifestCategory category, fs::path const& path);
+    // fake paths are paths that the loader normally looks in but actually point to locations inside the test framework
+    void set_fake_path(ManifestCategory category, fs::path const& path);
+
+    // known paths are real paths but since the test framework guarantee's the order files are found in, files in these paths
+    // need to be ordered correctly
+    void add_known_path(fs::path const& path);
 
     void add_manifest(ManifestCategory category, fs::path const& path);
+    void add_unsecured_manifest(ManifestCategory category, fs::path const& path);
 
 // platform specific shim interface
 #if defined(WIN32)
     // Control Platform Elevation Level
-    void set_elevated_privilege(bool elev) {
-        (elev) ? elevation_level = SECURITY_MANDATORY_HIGH_RID : elevation_level = SECURITY_MANDATORY_LOW_RID;
-    }
+    void set_elevated_privilege(bool elev) { elevation_level = (elev) ? SECURITY_MANDATORY_HIGH_RID : SECURITY_MANDATORY_LOW_RID; }
     unsigned long elevation_level = SECURITY_MANDATORY_LOW_RID;
 
     void add_dxgi_adapter(GpuType gpu_preference, DXGI_ADAPTER_DESC1 desc1);
@@ -174,6 +176,8 @@ struct PlatformShim {
     std::vector<RegistryEntry> hkey_local_machine_explicit_layers;
     std::vector<RegistryEntry> hkey_local_machine_implicit_layers;
     std::vector<RegistryEntry> hkey_local_machine_drivers;
+    std::vector<RegistryEntry> hkey_local_machine_settings;
+    std::vector<RegistryEntry> hkey_current_user_settings;
 
     std::wstring app_package_path;
 
@@ -181,20 +185,35 @@ struct PlatformShim {
     size_t created_key_count = 0;
     std::vector<HKeyHandle> created_keys;
 
-#elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+#elif COMMON_UNIX_PLATFORMS
     bool is_fake_path(fs::path const& path);
-    fs::path const& get_fake_path(fs::path const& path);
+    fs::path const& get_real_path_from_fake_path(fs::path const& path);
 
     void redirect_path(fs::path const& path, fs::path const& new_path);
     void remove_redirect(fs::path const& path);
 
+    bool is_known_path(fs::path const& path);
+    void remove_known_path(fs::path const& path);
+
+    void redirect_dlopen_name(fs::path const& filename, fs::path const& actual_path);
+    bool is_dlopen_redirect_name(fs::path const& filename);
+
+    fs::path query_default_redirect_path(ManifestCategory category);
+
     std::unordered_map<std::string, fs::path> redirection_map;
+    std::unordered_map<std::string, fs::path> dlopen_redirection_map;
+    std::unordered_set<std::string> known_path_set;
 
     void set_elevated_privilege(bool elev) { use_fake_elevation = elev; }
     bool use_fake_elevation = false;
 
     std::vector<DirEntry> dir_entries;
+
+#if defined(__APPLE__)
+    std::string bundle_contents;
 #endif
+#endif
+    bool is_during_destruction = false;
 };
 
 std::vector<std::string> parse_env_var_list(std::string const& var);
@@ -208,7 +227,7 @@ extern "C" {
 using PFN_get_platform_shim = PlatformShim* (*)(std::vector<fs::FolderManager>* folders);
 #define GET_PLATFORM_SHIM_STR "get_platform_shim"
 
-#elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+#elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__GNU__)
 // statically link on linux
 PlatformShim* get_platform_shim(std::vector<fs::FolderManager>* folders);
 #endif

@@ -16,10 +16,6 @@
 # ~~~
 
 
-# By default, tests and loader are built without sanitizers
-# Use these options to force a specific sanitizer on all test executables
-option(TEST_USE_ADDRESS_SANITIZER "Linux only: Advanced memory checking" OFF)
-option(TEST_USE_THREAD_SANITIZER "Linux only: Advanced thread checking" OFF)
 option(ENABLE_LIVE_VERIFICATION_TESTS "Enable tests which expect to run on live drivers. Meant for manual verification only" OFF)
 
 include(GoogleTest)
@@ -36,11 +32,12 @@ add_executable(
         loader_layer_tests.cpp
         loader_regression_tests.cpp
         loader_phys_dev_inst_ext_tests.cpp
+        loader_settings_tests.cpp
         loader_version_tests.cpp
         loader_unknown_ext_tests.cpp
         loader_wsi_tests.cpp)
 target_link_libraries(test_regression PUBLIC testing_dependencies)
-set_target_properties(test_regression ${LOADER_STANDARD_CXX_PROPERTIES})
+set_target_properties(test_regression PROPERTIES ${TESTS_STANDARD_CXX_PROPERTIES})
 target_compile_definitions(test_regression PUBLIC VK_NO_PROTOTYPES)
 
 # Threading tests live in separate executabe just for threading tests as it'll need support
@@ -50,7 +47,7 @@ add_executable(
         loader_testing_main.cpp
         loader_threading_tests.cpp)
 target_link_libraries(test_threading PUBLIC testing_dependencies)
-set_target_properties(test_threading ${LOADER_STANDARD_CXX_PROPERTIES})
+set_target_properties(test_threading PROPERTIES ${TESTS_STANDARD_CXX_PROPERTIES})
 target_compile_definitions(test_threading PUBLIC VK_NO_PROTOTYPES)
 
 # executables that are meant for testing against real drivers rather than the mocks

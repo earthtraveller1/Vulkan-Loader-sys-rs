@@ -48,14 +48,14 @@ bool has_flag(std::vector<TestConfig> const& flags, TestConfig config) {
 */
 template <typename DispatchableHandleType>
 struct custom_functions {
-    static VKAPI_ATTR uint32_t VKAPI_CALL func_zero(DispatchableHandleType handle, uint32_t foo) { return foo; };
-    static VKAPI_ATTR uint32_t VKAPI_CALL func_one(DispatchableHandleType handle, uint32_t foo, uint32_t bar) { return foo + bar; };
-    static VKAPI_ATTR float VKAPI_CALL func_two(DispatchableHandleType handle, uint32_t foo, uint32_t bar, float baz) {
+    static VKAPI_ATTR uint32_t VKAPI_CALL func_zero(DispatchableHandleType, uint32_t foo) { return foo; };
+    static VKAPI_ATTR uint32_t VKAPI_CALL func_one(DispatchableHandleType, uint32_t foo, uint32_t bar) { return foo + bar; };
+    static VKAPI_ATTR float VKAPI_CALL func_two(DispatchableHandleType, uint32_t foo, uint32_t bar, float baz) {
         return baz + foo + bar;
     };
-    static VKAPI_ATTR int VKAPI_CALL func_three(DispatchableHandleType handle, int* ptr_a, int* ptr_b) { return *ptr_a + *ptr_b; };
-    static VKAPI_ATTR float VKAPI_CALL func_four(DispatchableHandleType handle, int* ptr_a, int* ptr_b, int foo, int bar, float k,
-                                                 float l, char a, char b, char c) {
+    static VKAPI_ATTR int VKAPI_CALL func_three(DispatchableHandleType, int* ptr_a, int* ptr_b) { return *ptr_a + *ptr_b; };
+    static VKAPI_ATTR float VKAPI_CALL func_four(DispatchableHandleType, int* ptr_a, int* ptr_b, int foo, int bar, float k, float l,
+                                                 char a, char b, char c) {
         return *ptr_a + *ptr_b + foo + bar + k + l + static_cast<int>(a) + static_cast<int>(b) + static_cast<int>(c);
     };
 };
@@ -102,7 +102,7 @@ struct layer_intercept_functions {
         return func(handle, layer, name, ptr_a, ptr_b);
     };
     static VKAPI_ATTR float VKAPI_CALL func_four(DispatchableHandleType handle, TestLayer* layer, const char* name, int* ptr_a,
-                                                 int* ptr_b, int foo, int bar, float k, float l, char a, char b, char c) {
+                                                 int* ptr_b, int foo, int bar, float k, float l, char, char, char) {
         auto func = reinterpret_cast<decltype(&func_four)>(find_custom_func(layer, name));
         if (func == nullptr) return -1337.f;
         return func(handle, layer, name, ptr_a, ptr_b, foo + 4, bar + 5, k + 1, l + 2, 'd', 'e', 'f');
@@ -111,23 +111,19 @@ struct layer_intercept_functions {
 
 template <typename DispatchableHandleType>
 struct layer_implementation_functions {
-    static VKAPI_ATTR uint32_t VKAPI_CALL func_zero(DispatchableHandleType device, TestLayer* layer, const char* name, uint32_t i) {
-        return i * 3;
-    }
-    static VKAPI_ATTR uint32_t VKAPI_CALL func_one(DispatchableHandleType device, TestLayer* layer, const char* name, uint32_t i,
-                                                   float f) {
+    static VKAPI_ATTR uint32_t VKAPI_CALL func_zero(DispatchableHandleType, TestLayer*, const char*, uint32_t i) { return i * 3; }
+    static VKAPI_ATTR uint32_t VKAPI_CALL func_one(DispatchableHandleType, TestLayer*, const char*, uint32_t i, float f) {
         return static_cast<int>(i * 3 + f * 10.f);
     }
-    static VKAPI_ATTR float VKAPI_CALL func_two(DispatchableHandleType handle, TestLayer* layer, const char* name, uint32_t foo,
-                                                uint32_t bar, float baz) {
+    static VKAPI_ATTR float VKAPI_CALL func_two(DispatchableHandleType, TestLayer*, const char*, uint32_t foo, uint32_t bar,
+                                                float baz) {
         return baz + foo + bar;
     };
-    static VKAPI_ATTR int VKAPI_CALL func_three(DispatchableHandleType handle, TestLayer* layer, const char* name, int* ptr_a,
-                                                int* ptr_b) {
+    static VKAPI_ATTR int VKAPI_CALL func_three(DispatchableHandleType, TestLayer*, const char*, int* ptr_a, int* ptr_b) {
         return *ptr_a + *ptr_b;
     };
-    static VKAPI_ATTR float VKAPI_CALL func_four(DispatchableHandleType handle, TestLayer* layer, const char* name, int* ptr_a,
-                                                 int* ptr_b, int foo, int bar, float k, float l, char a, char b, char c) {
+    static VKAPI_ATTR float VKAPI_CALL func_four(DispatchableHandleType, TestLayer*, const char*, int* ptr_a, int* ptr_b, int foo,
+                                                 int bar, float k, float l, char a, char b, char c) {
         return *ptr_a + *ptr_b + foo + bar + k + l + static_cast<int>(a) + static_cast<int>(b) + static_cast<int>(c);
     };
 };
@@ -186,7 +182,7 @@ void fill_phys_dev_intercept_functions(TestLayer& layer, std::vector<std::string
 }
 
 template <typename FunctionLoader, typename ParentType, typename DispatchableHandleType, typename FunctionStruct>
-void check_custom_functions(FunctionLoader& loader, ParentType parent, DispatchableHandleType handle, FunctionStruct const& s,
+void check_custom_functions(FunctionLoader& loader, ParentType parent, DispatchableHandleType handle, FunctionStruct const&,
                             std::vector<std::string>& func_names, uint32_t function_count, uint32_t function_start = 0) {
     for (uint32_t i = function_start; i < function_start + function_count;) {
         decltype(FunctionStruct::func_zero)* returned_func_i = loader.load(parent, func_names.at(i++).c_str());
@@ -218,7 +214,7 @@ void check_custom_functions(FunctionLoader& loader, ParentType parent, Dispatcha
 
 template <typename FunctionLoader, typename ParentType, typename DispatchableHandleType, typename FunctionStruct>
 void check_layer_custom_functions(FunctionLoader& loader, ParentType parent, DispatchableHandleType handle, TestLayer& layer,
-                                  FunctionStruct const& s, std::vector<std::string>& func_names, uint32_t function_count,
+                                  FunctionStruct const&, std::vector<std::string>& func_names, uint32_t function_count,
                                   uint32_t function_start = 0) {
     for (uint32_t i = function_start; i < function_start + function_count;) {
         decltype(FunctionStruct::func_zero)* returned_func_i = loader.load(parent, func_names.at(i).c_str());
@@ -258,7 +254,7 @@ void check_layer_custom_functions(FunctionLoader& loader, ParentType parent, Dis
 
 template <typename FunctionLoader, typename ParentType, typename DispatchableHandleType, typename FunctionStruct>
 void check_layer_custom_functions_no_implementation(FunctionLoader& loader, ParentType parent, DispatchableHandleType handle,
-                                                    TestLayer& layer, FunctionStruct const& s, std::vector<std::string>& func_names,
+                                                    TestLayer& layer, FunctionStruct const&, std::vector<std::string>& func_names,
                                                     uint32_t function_count, uint32_t function_start = 0) {
     for (uint32_t i = function_start; i < function_start + function_count;) {
         decltype(FunctionStruct::func_zero)* returned_func_i = loader.load(parent, func_names.at(i).c_str());
@@ -296,7 +292,7 @@ void check_layer_custom_functions_no_implementation(FunctionLoader& loader, Pare
 
 template <typename FunctionLoader, typename ParentType, typename DispatchableHandleType, typename FunctionStruct>
 void check_layer_custom_functions_no_interception(FunctionLoader& loader, ParentType parent, DispatchableHandleType handle,
-                                                  TestLayer& layer, FunctionStruct const& s, std::vector<std::string>& func_names,
+                                                  TestLayer& layer, FunctionStruct const&, std::vector<std::string>& func_names,
                                                   uint32_t function_count, uint32_t function_start = 0) {
     for (uint32_t i = function_start; i < function_start + function_count;) {
         decltype(FunctionStruct::func_zero)* returned_func_i = loader.load(parent, func_names.at(i).c_str());
@@ -338,17 +334,12 @@ using layer_intercept_physical_device_functions = layer_intercept_functions<VkPh
 using layer_implementation_physical_device_functions = layer_implementation_functions<VkPhysicalDevice>;
 
 TEST(UnknownFunction, PhysicalDeviceFunction) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
-    auto& driver = env.get_test_icd();
+    auto& driver = env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA)).add_physical_device({});
     uint32_t function_count = MAX_NUM_UNKNOWN_EXTS;
     std::vector<std::string> function_names;
     add_function_names(function_names, function_count);
 
-    driver.physical_devices.emplace_back("physical_device_0");
     fill_implementation_functions(driver.physical_devices.at(0).custom_physical_device_functions, function_names,
                                   custom_physical_device_functions{}, function_count);
     InstWrapper inst{env.vulkan_functions};
@@ -360,26 +351,16 @@ TEST(UnknownFunction, PhysicalDeviceFunction) {
 }
 
 TEST(UnknownFunction, PhysicalDeviceFunctionMultipleDriverSupport) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
-    auto& driver_0 = env.get_test_icd(0);
-    auto& driver_1 = env.get_test_icd(1);
+    auto& driver_0 = env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
+    auto& driver_1 = env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
     uint32_t function_count = MAX_NUM_UNKNOWN_EXTS;
     std::vector<std::string> function_names;
     add_function_names(function_names, function_count);
 
     // used to identify the GPUs
-    VkPhysicalDeviceProperties props{};
-    driver_0.physical_devices.emplace_back("physical_device_0");
-    props.deviceType = VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
-    driver_0.physical_devices.back().set_properties(props);
-    driver_1.physical_devices.emplace_back("physical_device_1");
-    props.deviceType = VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
-    driver_1.physical_devices.back().set_properties(props);
+    driver_0.physical_devices.emplace_back("physical_device_0").properties.deviceType = VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+    driver_1.physical_devices.emplace_back("physical_device_1").properties.deviceType = VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
 
     for (uint32_t i = 0; i < function_count / 10; i++) {
         fill_implementation_functions(driver_0.physical_devices.at(0).custom_physical_device_functions, function_names,
@@ -393,6 +374,7 @@ TEST(UnknownFunction, PhysicalDeviceFunctionMultipleDriverSupport) {
     auto phys_devs = inst.GetPhysDevs(2);
     VkPhysicalDevice phys_dev_0 = phys_devs[0];
     VkPhysicalDevice phys_dev_1 = phys_devs[1];
+    VkPhysicalDeviceProperties props{};
     env.vulkan_functions.vkGetPhysicalDeviceProperties(phys_devs[0], &props);
     if (props.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
         phys_dev_0 = phys_devs[1];
@@ -408,25 +390,15 @@ TEST(UnknownFunction, PhysicalDeviceFunctionMultipleDriverSupport) {
 
 // Add unknown functions to driver 0, and try to use them on driver 1.
 TEST(UnknownFunctionDeathTests, PhysicalDeviceFunctionErrorPath) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
-    auto& driver_0 = env.get_test_icd(0);
-    auto& driver_1 = env.get_test_icd(1);
+    auto& driver_0 = env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
+    auto& driver_1 = env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
     std::vector<std::string> function_names;
     add_function_names(function_names, 1);
 
     // used to identify the GPUs
-    VkPhysicalDeviceProperties props{};
-    driver_0.physical_devices.emplace_back("physical_device_0");
-    props.deviceType = VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
-    driver_0.physical_devices.back().set_properties(props);
-    driver_1.physical_devices.emplace_back("physical_device_1");
-    props.deviceType = VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
-    driver_1.physical_devices.back().set_properties(props);
+    driver_0.physical_devices.emplace_back("physical_device_0").properties.deviceType = VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+    driver_1.physical_devices.emplace_back("physical_device_1").properties.deviceType = VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
     function_names.push_back(std::string("vkNotIntRealFuncTEST_0"));
 
     custom_physical_device_functions funcs{};
@@ -438,6 +410,7 @@ TEST(UnknownFunctionDeathTests, PhysicalDeviceFunctionErrorPath) {
 
     auto phys_devs = inst.GetPhysDevs(2);
     VkPhysicalDevice phys_dev_to_use = phys_devs[1];
+    VkPhysicalDeviceProperties props{};
     env.vulkan_functions.vkGetPhysicalDeviceProperties(phys_devs[1], &props);
     if (props.deviceType != VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) phys_dev_to_use = phys_devs[0];
     // use the wrong GPU to query the functions, should get 5 errors
@@ -449,17 +422,11 @@ TEST(UnknownFunctionDeathTests, PhysicalDeviceFunctionErrorPath) {
 }
 
 TEST(UnknownFunction, PhysicalDeviceFunctionWithImplicitLayerImplementation) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
+    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA)).add_physical_device({});
     uint32_t function_count = MAX_NUM_UNKNOWN_EXTS;
-    auto& driver = env.get_test_icd();
     std::vector<std::string> function_names;
     add_function_names(function_names, function_count);
-
-    driver.physical_devices.emplace_back("physical_device_0");
 
     env.add_implicit_layer(ManifestLayer{}.add_layer(ManifestLayer::LayerDescription{}
                                                          .set_name("VK_LAYER_implicit_layer_unknown_function_intercept")
@@ -479,26 +446,16 @@ TEST(UnknownFunction, PhysicalDeviceFunctionWithImplicitLayerImplementation) {
 }
 
 TEST(UnknownFunction, PhysicalDeviceFunctionMultipleDriverSupportWithImplicitLayerImplementation) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
-    auto& driver_0 = env.get_test_icd(0);
-    auto& driver_1 = env.get_test_icd(1);
+    auto& driver_0 = env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
+    auto& driver_1 = env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
     uint32_t function_count = MAX_NUM_UNKNOWN_EXTS;
     std::vector<std::string> function_names;
     add_function_names(function_names, function_count);
 
     // used to identify the GPUs
-    VkPhysicalDeviceProperties props{};
-    driver_0.physical_devices.emplace_back("physical_device_0");
-    props.deviceType = VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
-    driver_0.physical_devices.back().set_properties(props);
-    driver_1.physical_devices.emplace_back("physical_device_1");
-    props.deviceType = VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
-    driver_1.physical_devices.back().set_properties(props);
+    driver_0.physical_devices.emplace_back("physical_device_0").properties.deviceType = VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+    driver_1.physical_devices.emplace_back("physical_device_1").properties.deviceType = VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
     for (uint32_t i = 0; i < function_count / 10; i++) {
         fill_implementation_functions(driver_0.physical_devices.at(0).custom_physical_device_functions, function_names,
                                       custom_physical_device_functions{}, 5, i * 10);
@@ -518,6 +475,7 @@ TEST(UnknownFunction, PhysicalDeviceFunctionMultipleDriverSupportWithImplicitLay
     auto phys_devs = inst.GetPhysDevs(2);
     VkPhysicalDevice phys_dev_0 = phys_devs[0];
     VkPhysicalDevice phys_dev_1 = phys_devs[1];
+    VkPhysicalDeviceProperties props{};
     env.vulkan_functions.vkGetPhysicalDeviceProperties(phys_devs[0], &props);
     if (props.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
         phys_dev_0 = phys_devs[1];
@@ -532,14 +490,9 @@ TEST(UnknownFunction, PhysicalDeviceFunctionMultipleDriverSupportWithImplicitLay
 }
 
 TEST(UnknownFunction, PhysicalDeviceFunctionWithImplicitLayerInterception) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
+    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA)).add_physical_device({});
     uint32_t function_count = MAX_NUM_UNKNOWN_EXTS;
-    auto& driver = env.get_test_icd();
-    driver.physical_devices.emplace_back("physical_device_0");
 
     std::vector<std::string> function_names;
     add_function_names(function_names, function_count);
@@ -561,16 +514,11 @@ TEST(UnknownFunction, PhysicalDeviceFunctionWithImplicitLayerInterception) {
 }
 
 TEST(UnknownFunction, PhysicalDeviceFunctionDriverSupportWithImplicitLayerInterception) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
-    auto& driver = env.get_test_icd();
+    auto& driver = env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA)).add_physical_device({});
     uint32_t function_count = 100;
     std::vector<std::string> function_names;
     add_function_names(function_names, function_count);
-    driver.physical_devices.emplace_back("physical_device_0");
     fill_implementation_functions(driver.physical_devices.at(0).custom_physical_device_functions, function_names,
                                   layer_implementation_physical_device_functions{}, function_count);
     env.add_implicit_layer(ManifestLayer{}.add_layer(ManifestLayer::LayerDescription{}
@@ -590,12 +538,8 @@ TEST(UnknownFunction, PhysicalDeviceFunctionDriverSupportWithImplicitLayerInterc
 }
 
 TEST(UnknownFunction, PhysicalDeviceFunctionWithMultipleImplicitLayersInterception) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
-    auto& driver = env.get_test_icd();
+    auto& driver = env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
     std::vector<std::string> function_names;
     uint32_t function_count = MAX_NUM_UNKNOWN_EXTS;
     add_function_names(function_names, function_count);
@@ -637,11 +581,11 @@ template <typename ParentType>
 ParentType get_parent_type(InstWrapper const& inst, DeviceWrapper const& dev);
 
 template <>
-VkInstance get_parent_type<VkInstance>(InstWrapper const& inst, DeviceWrapper const& dev) {
+VkInstance get_parent_type<VkInstance>(InstWrapper const& inst, DeviceWrapper const&) {
     return inst.inst;
 }
 template <>
-VkDevice get_parent_type<VkDevice>(InstWrapper const& inst, DeviceWrapper const& dev) {
+VkDevice get_parent_type<VkDevice>(InstWrapper const&, DeviceWrapper const& dev) {
     return dev.dev;
 }
 
@@ -650,13 +594,13 @@ DispatchableHandleType get_dispatch_handle(FrameworkEnvironment& env, DeviceWrap
                                            std::vector<TestConfig> const& flags);
 
 template <>
-VkDevice get_dispatch_handle<VkDevice>(FrameworkEnvironment& env, DeviceWrapper const& dev, std::vector<TestConfig> const& flags) {
+VkDevice get_dispatch_handle<VkDevice>(FrameworkEnvironment&, DeviceWrapper const& dev, std::vector<TestConfig> const&) {
     return dev.dev;
 }
 
 template <>
 VkCommandBuffer get_dispatch_handle<VkCommandBuffer>(FrameworkEnvironment& env, DeviceWrapper const& dev,
-                                                     std::vector<TestConfig> const& flags) {
+                                                     std::vector<TestConfig> const&) {
     VkCommandPool command_pool;
     VkCommandPoolCreateInfo pool_create_info{};
     DeviceFunctions funcs{env.vulkan_functions, dev};
@@ -670,7 +614,7 @@ VkCommandBuffer get_dispatch_handle<VkCommandBuffer>(FrameworkEnvironment& env, 
 }
 
 template <>
-VkQueue get_dispatch_handle<VkQueue>(FrameworkEnvironment& env, DeviceWrapper const& dev, std::vector<TestConfig> const& flags) {
+VkQueue get_dispatch_handle<VkQueue>(FrameworkEnvironment& env, DeviceWrapper const& dev, std::vector<TestConfig> const&) {
     DeviceFunctions funcs{env.vulkan_functions, dev.dev};
     VkQueue queue;
     funcs.vkGetDeviceQueue(dev, 0, 0, &queue);
@@ -684,12 +628,8 @@ void unknown_function_test_impl(std::vector<TestConfig> const& flags) {
     using layer_intercept_functions_type = layer_intercept_functions<DispatchableHandleType>;
 
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
+    auto& driver = env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA)).add_physical_device({});
     uint32_t function_count = MAX_NUM_UNKNOWN_EXTS;
-
-    auto& driver = env.get_test_icd();
-    driver.physical_devices.emplace_back("physical_device_0");
-    driver.physical_devices.back().add_queue_family_properties({});
 
     std::vector<std::string> function_names;
     add_function_names(function_names, function_count);
@@ -763,31 +703,17 @@ TEST(UnknownFunction, DeviceFromGDPAWithLayerInterceptionAndLayerImplementation)
     unknown_function_test_impl<VkDevice, VkDevice>({TestConfig::add_layer_interception, TestConfig::add_layer_implementation});
 }
 
-TEST(UnknownFunction, DeviceFromGIPA) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
-    unknown_function_test_impl<VkInstance, VkDevice>({});
-}
+TEST(UnknownFunction, DeviceFromGIPA) { unknown_function_test_impl<VkInstance, VkDevice>({}); }
 
 TEST(UnknownFunction, DeviceFromGIPAWithLayerImplementation) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     unknown_function_test_impl<VkInstance, VkDevice>({TestConfig::add_layer_implementation});
 }
 
 TEST(UnknownFunction, DeviceFromGIPAWithLayerInterception) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     unknown_function_test_impl<VkInstance, VkDevice>({TestConfig::add_layer_implementation});
 }
 
 TEST(UnknownFunction, DeviceFromGIPAWithLayerInterceptionAndLayerImplementation) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     unknown_function_test_impl<VkInstance, VkDevice>({TestConfig::add_layer_interception, TestConfig::add_layer_implementation});
 }
 
@@ -808,31 +734,17 @@ TEST(UnknownFunction, CommandBufferFromGDPAWithLayerInterceptionAndLayerImplemen
         {TestConfig::add_layer_interception, TestConfig::add_layer_implementation});
 }
 
-TEST(UnknownFunction, CommandBufferFromGIPA) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
-    unknown_function_test_impl<VkInstance, VkCommandBuffer>({});
-}
+TEST(UnknownFunction, CommandBufferFromGIPA) { unknown_function_test_impl<VkInstance, VkCommandBuffer>({}); }
 
 TEST(UnknownFunction, CommandBufferFromGIPAWithLayerImplementation) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     unknown_function_test_impl<VkInstance, VkCommandBuffer>({TestConfig::add_layer_implementation});
 }
 
 TEST(UnknownFunction, CommandBufferFromGIPAWithLayerInterception) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     unknown_function_test_impl<VkInstance, VkCommandBuffer>({TestConfig::add_layer_implementation});
 }
 
 TEST(UnknownFunction, CommandBufferFromGIPAWithLayerInterceptionAndLayerImplementation) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     unknown_function_test_impl<VkInstance, VkCommandBuffer>(
         {TestConfig::add_layer_interception, TestConfig::add_layer_implementation});
 }
@@ -853,31 +765,17 @@ TEST(UnknownFunction, QueueFromGDPAWithLayerInterceptionAndLayerImplementation) 
     unknown_function_test_impl<VkDevice, VkQueue>({TestConfig::add_layer_interception, TestConfig::add_layer_implementation});
 }
 
-TEST(UnknownFunction, QueueFromGIPA) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
-    unknown_function_test_impl<VkInstance, VkQueue>({});
-}
+TEST(UnknownFunction, QueueFromGIPA) { unknown_function_test_impl<VkInstance, VkQueue>({}); }
 
 TEST(UnknownFunction, QueueFromGIPAWithLayer) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     unknown_function_test_impl<VkInstance, VkQueue>({TestConfig::add_layer_implementation});
 }
 
 TEST(UnknownFunction, QueueFromGIPAWithLayerInterception) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     unknown_function_test_impl<VkInstance, VkQueue>({TestConfig::add_layer_implementation});
 }
 
 TEST(UnknownFunction, QueueFromGIPAWithLayerInterceptionAndLayerImplementation) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     unknown_function_test_impl<VkInstance, VkQueue>({TestConfig::add_layer_interception, TestConfig::add_layer_implementation});
 }
 
@@ -900,7 +798,7 @@ const char* LayerInterceptData<UniqueType>::name = nullptr;
 
 template <typename DispatchableHandle>
 struct FunctionZero {
-    static VKAPI_ATTR uint32_t VKAPI_CALL implementation(DispatchableHandle handle, uint32_t a, uint32_t b) { return a + b; }
+    static VKAPI_ATTR uint32_t VKAPI_CALL implementation(DispatchableHandle, uint32_t a, uint32_t b) { return a + b; }
 
     template <typename LayerType>
     static VKAPI_ATTR uint32_t VKAPI_CALL intercept(DispatchableHandle handle, uint32_t a, uint32_t b) {
@@ -928,9 +826,7 @@ struct FunctionZero {
 
 template <typename DispatchableHandle>
 struct FunctionOne {
-    static VKAPI_ATTR uint32_t VKAPI_CALL implementation(DispatchableHandle handle, uint32_t a, uint32_t b, char c) {
-        return a + b + c;
-    }
+    static VKAPI_ATTR uint32_t VKAPI_CALL implementation(DispatchableHandle, uint32_t a, uint32_t b, char c) { return a + b + c; }
 
     template <typename LayerType>
     static VKAPI_ATTR uint32_t VKAPI_CALL intercept(DispatchableHandle handle, uint32_t a, uint32_t b, char c) {
@@ -959,7 +855,7 @@ struct FunctionOne {
 
 template <typename DispatchableHandle>
 struct FunctionTwo {
-    static VKAPI_ATTR float VKAPI_CALL implementation(DispatchableHandle handle, int* ptr_a, int* ptr_b) {
+    static VKAPI_ATTR float VKAPI_CALL implementation(DispatchableHandle, int* ptr_a, int* ptr_b) {
         return 0.123f + *ptr_a + *ptr_b;
     }
 
@@ -994,7 +890,7 @@ struct FunctionTwo {
 
 template <typename DispatchableHandle>
 struct FunctionThree {
-    static VKAPI_ATTR float VKAPI_CALL implementation(DispatchableHandle handle, int* ptr_a, float* ptr_b, uint32_t c) {
+    static VKAPI_ATTR float VKAPI_CALL implementation(DispatchableHandle, int* ptr_a, float* ptr_b, uint32_t c) {
         return 0.456f + *ptr_a + *ptr_b + c;
     }
 
@@ -1032,7 +928,7 @@ struct FunctionThree {
 
 template <typename DispatchableHandle>
 struct FunctionFour {
-    static VKAPI_ATTR VkResult VKAPI_CALL implementation(DispatchableHandle handle, VkPhysicalDeviceLimits* limits, uint32_t* count,
+    static VKAPI_ATTR VkResult VKAPI_CALL implementation(DispatchableHandle, VkPhysicalDeviceLimits* limits, uint32_t* count,
                                                          VkExtensionProperties* props) {
         limits->nonCoherentAtomSize = 0x0000ABCD0000FEDCU;
         if (props == nullptr) {
@@ -1130,7 +1026,7 @@ struct UnknownFunctionInfo {
     }
 
     template <typename LayerStruct>
-    static void add_to_layer(UnknownFunction& func, TestLayer& layer, LayerStruct intercept_struct) {
+    static void add_to_layer(UnknownFunction& func, TestLayer& layer, LayerStruct) {
         LayerInterceptData<LayerStruct>::layer = &layer;
         LayerInterceptData<LayerStruct>::name = func.name.c_str();
         layer.add_custom_device_interception_function(
@@ -1157,7 +1053,7 @@ struct UnknownFunctionInfo<FunctionType, VkPhysicalDevice> {
     }
 
     template <typename LayerStruct>
-    static void add_to_layer(UnknownFunction& func, TestLayer& layer, LayerStruct intercept_struct) {
+    static void add_to_layer(UnknownFunction& func, TestLayer& layer, LayerStruct) {
         LayerInterceptData<LayerStruct>::layer = &layer;
         LayerInterceptData<LayerStruct>::name = func.name.c_str();
         layer.add_custom_physical_device_intercept_function(
@@ -1192,14 +1088,8 @@ template <size_t I>
 struct D {};
 
 TEST(UnknownFunction, PhysicalDeviceFunctionTwoLayerInterception) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
-    auto& driver = env.get_test_icd();
-
-    driver.physical_devices.emplace_back("physical_device_0");
+    auto& driver = env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA)).add_physical_device({});
     PhysicalDevice& pd = driver.physical_devices.back();
 
     UnknownFunction f{"vkFunc1"};
@@ -1231,12 +1121,9 @@ TEST(UnknownFunction, PhysicalDeviceFunctionTwoLayerInterception) {
 }
 
 TEST(UnknownFunction, ManyCombinations) {
-#if defined(__APPLE__)
-    GTEST_SKIP() << "Skip this test as currently macOS doesn't fully support unknown functions.";
-#endif
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
-    auto& driver = env.get_test_icd();
+    auto& driver = env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA)).add_physical_device({});
+    PhysicalDevice& physical_device = driver.physical_devices.back();
     std::vector<UnknownFunction> unknown_funcs;
 
     unknown_funcs.emplace_back("vkZero_uint32_uint32_0");
@@ -1252,9 +1139,6 @@ TEST(UnknownFunction, ManyCombinations) {
     unknown_funcs.emplace_back("vkZero_uint32_uint32_10");
     unknown_funcs.emplace_back("vkOne_uint32_uint32_char_11");
     unknown_funcs.emplace_back("vkTwo_ptr_int_ptr_int_12");
-
-    driver.physical_devices.emplace_back("physical_device_0");
-    PhysicalDevice& physical_device = driver.physical_devices.back();
 
     env.add_implicit_layer(ManifestLayer{}.add_layer(ManifestLayer::LayerDescription{}
                                                          .set_name("VK_LAYER_implicit_layer_unknown_function_intercept_0")
@@ -1378,4 +1262,50 @@ TEST(UnknownFunction, ManyCombinations) {
         unknown_funcs.at(4).check<Functions::four::physical_device>(env.vulkan_functions, inst.inst, phys_dev);
         unknown_funcs.at(5).check<Functions::zero::physical_device>(env.vulkan_functions, inst.inst, phys_dev);
     }
+}
+
+TEST(UnknownFunction, PhysicalDeviceFunctionInLayer) {
+    FrameworkEnvironment env{};
+    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA)).add_physical_device({});
+
+    env.add_implicit_layer(ManifestLayer{}
+                               .add_layer(ManifestLayer::LayerDescription{}
+                                              .set_name("VK_LAYER_implicit_layer_1")
+                                              .set_lib_path(TEST_LAYER_PATH_EXPORT_VERSION_0)
+                                              .set_disable_environment("DISABLE_ME"))
+                               .set_file_format_version({1, 0, 0}),
+                           "implicit_layer_1.json");
+
+    UnknownFunction unknown_func{"vkPhysicalDeviceFunctionInLayer"};
+    const char* ext_name = "VK_EXT_not_funny";
+
+    const char* explicit_layer_unknown_function_implement = "VK_LAYER_implement_unknown_function";
+    env.add_explicit_layer(
+        ManifestLayer{}
+            .add_layer(ManifestLayer::LayerDescription{}
+                           .set_name(explicit_layer_unknown_function_implement)
+                           .set_lib_path(TEST_LAYER_PATH_EXPORT_VERSION_2)
+                           .add_instance_extension(ManifestLayer::LayerDescription::Extension{ext_name, 0, {unknown_func.name}}))
+            .set_file_format_version({1, 1, 0}),
+        "implement_unknown_function.json");
+    auto& layer0 = env.get_test_layer(1);
+
+    const char* explicit_layer_to_enable_1 = "VK_LAYER_explicit_layer_1";
+    env.add_explicit_layer(ManifestLayer{}
+                               .add_layer(ManifestLayer::LayerDescription{}
+                                              .set_name(explicit_layer_to_enable_1)
+                                              .set_lib_path(TEST_LAYER_PATH_EXPORT_VERSION_2))
+                               .set_file_format_version({1, 2, 0}),
+                           "explicit_layer_2.json");
+
+    Functions::four::physical_device::add_implementation_to_layer(unknown_func, layer0);
+
+    InstWrapper inst{env.vulkan_functions};
+    inst.create_info.add_layer(explicit_layer_to_enable_1);
+    inst.create_info.add_layer(explicit_layer_unknown_function_implement);
+    inst.CheckCreate();
+
+    VkPhysicalDevice phys_dev = inst.GetPhysDev();
+
+    unknown_func.check<Functions::four::physical_device>(env.vulkan_functions, inst.inst, phys_dev);
 }

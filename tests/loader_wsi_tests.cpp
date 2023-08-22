@@ -37,7 +37,6 @@ TEST(WsiTests, CreateSurfaceWin32NoICDSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
 
     InstWrapper inst{env.vulkan_functions};
     inst.create_info.add_extensions({VK_KHR_WIN32_SURFACE_EXTENSION_NAME});
@@ -55,7 +54,6 @@ TEST(WsiTests, CreateSurfaceWin32NoICDCreateSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.add_instance_extension({VK_KHR_SURFACE_EXTENSION_NAME});
     cur_icd.add_instance_extension({VK_KHR_WIN32_SURFACE_EXTENSION_NAME});
     cur_icd.enable_icd_wsi = false;
@@ -68,7 +66,6 @@ TEST(WsiTests, CreateSurfaceWin32NoICDCreateSupport) {
     VkWin32SurfaceCreateInfoKHR surf_create_info{VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR};
     ASSERT_EQ(VK_SUCCESS, env.vulkan_functions.vkCreateWin32SurfaceKHR(inst, &surf_create_info, nullptr, &surface));
     ASSERT_TRUE(surface != VK_NULL_HANDLE);
-    //    ASSERT_EQ(cur_icd.is_using_icd_wsi, UsingICDProvidedWSI::not_using);
 
     env.vulkan_functions.vkDestroySurfaceKHR(inst, surface, nullptr);
 }
@@ -79,7 +76,6 @@ TEST(WsiTests, CreateSurfaceWin32ICDSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.add_instance_extension({VK_KHR_SURFACE_EXTENSION_NAME});
     cur_icd.add_instance_extension({VK_KHR_WIN32_SURFACE_EXTENSION_NAME});
     cur_icd.enable_icd_wsi = true;
@@ -92,7 +88,6 @@ TEST(WsiTests, CreateSurfaceWin32ICDSupport) {
     VkWin32SurfaceCreateInfoKHR surf_create_info{VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR};
     ASSERT_EQ(VK_SUCCESS, env.vulkan_functions.vkCreateWin32SurfaceKHR(inst, &surf_create_info, nullptr, &surface));
     ASSERT_TRUE(surface != VK_NULL_HANDLE);
-    //    ASSERT_EQ(cur_icd.is_using_icd_wsi, UsingICDProvidedWSI::not_using);
 
     env.vulkan_functions.vkDestroySurfaceKHR(inst, surface, nullptr);
 }
@@ -121,7 +116,6 @@ TEST(WsiTests, CreateSurfaceWin32MixedICDSupport) {
     VkWin32SurfaceCreateInfoKHR surf_create_info{VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR};
     ASSERT_EQ(VK_SUCCESS, env.vulkan_functions.vkCreateWin32SurfaceKHR(instance.inst, &surf_create_info, nullptr, &surface));
     ASSERT_TRUE(surface != VK_NULL_HANDLE);
-    //    ASSERT_EQ(cur_icd.is_using_icd_wsi, UsingICDProvidedWSI::not_using);
 
     env.vulkan_functions.vkDestroySurfaceKHR(instance.inst, surface, nullptr);
 }
@@ -131,7 +125,6 @@ TEST(WsiTests, GetPhysicalDeviceWin32PresentNoICDSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.add_instance_extension({VK_KHR_SURFACE_EXTENSION_NAME});
     cur_icd.add_instance_extension({VK_KHR_WIN32_SURFACE_EXTENSION_NAME});
     cur_icd.physical_devices.emplace_back("physical_device_0");
@@ -159,7 +152,6 @@ TEST(WsiTests, GetPhysicalDeviceWin32PresentICDSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.add_instance_extension({VK_KHR_SURFACE_EXTENSION_NAME});
     cur_icd.add_instance_extension({VK_KHR_WIN32_SURFACE_EXTENSION_NAME});
     cur_icd.physical_devices.emplace_back("physical_device_0");
@@ -202,7 +194,6 @@ TEST(WsiTests, Win32GetPhysicalDeviceSurfaceSupportKHR) {
     VkWin32SurfaceCreateInfoKHR surf_create_info{VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR};
     ASSERT_EQ(VK_SUCCESS, env.vulkan_functions.vkCreateWin32SurfaceKHR(instance.inst, &surf_create_info, nullptr, &surface));
     ASSERT_TRUE(surface != VK_NULL_HANDLE);
-    //    ASSERT_EQ(driver.is_using_icd_wsi, UsingICDProvidedWSI::not_using);
 
     uint32_t device_count = max_device_count;
     std::array<VkPhysicalDevice, max_device_count> phys_devs;
@@ -225,7 +216,6 @@ TEST(WsiTests, CreateSurfaceXCBNoICDSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.enable_icd_wsi = false;
 
     InstWrapper inst{env.vulkan_functions};
@@ -244,7 +234,6 @@ TEST(WsiTests, CreateSurfaceXCBNoICDCreateSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.add_instance_extension({VK_KHR_SURFACE_EXTENSION_NAME});
     cur_icd.add_instance_extension({VK_KHR_XCB_SURFACE_EXTENSION_NAME});
     cur_icd.enable_icd_wsi = false;
@@ -268,7 +257,6 @@ TEST(WsiTests, CreateSurfaceXCBICDSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.add_instance_extension({VK_KHR_SURFACE_EXTENSION_NAME});
     cur_icd.add_instance_extension({VK_KHR_XCB_SURFACE_EXTENSION_NAME});
     cur_icd.enable_icd_wsi = true;
@@ -320,7 +308,6 @@ TEST(WsiTests, GetPhysicalDeviceXcbPresentNoICDSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.add_instance_extension({VK_KHR_SURFACE_EXTENSION_NAME});
     cur_icd.add_instance_extension({VK_KHR_XCB_SURFACE_EXTENSION_NAME});
     cur_icd.physical_devices.emplace_back("physical_device_0");
@@ -348,7 +335,6 @@ TEST(WsiTests, GetPhysicalDeviceXcbPresentICDSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.add_instance_extension({VK_KHR_SURFACE_EXTENSION_NAME});
     cur_icd.add_instance_extension({VK_KHR_XCB_SURFACE_EXTENSION_NAME});
     cur_icd.physical_devices.emplace_back("physical_device_0");
@@ -391,7 +377,6 @@ TEST(WsiTests, XcbGetPhysicalDeviceSurfaceSupportKHR) {
     VkXcbSurfaceCreateInfoKHR xcb_createInfo{VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR};
     ASSERT_EQ(VK_SUCCESS, env.vulkan_functions.vkCreateXcbSurfaceKHR(instance.inst, &xcb_createInfo, nullptr, &surface));
     ASSERT_TRUE(surface != VK_NULL_HANDLE);
-    //    ASSERT_EQ(cur_icd.is_using_icd_wsi, UsingICDProvidedWSI::not_using);
 
     uint32_t device_count = max_device_count;
     std::array<VkPhysicalDevice, max_device_count> phys_devs;
@@ -414,7 +399,6 @@ TEST(WsiTests, CreateSurfaceXLIBNoICDSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.enable_icd_wsi = false;
 
     InstWrapper inst{env.vulkan_functions};
@@ -433,7 +417,6 @@ TEST(WsiTests, CreateSurfaceXLIBNoICDCreateSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.add_instance_extension({VK_KHR_SURFACE_EXTENSION_NAME});
     cur_icd.add_instance_extension({VK_KHR_XLIB_SURFACE_EXTENSION_NAME});
     cur_icd.enable_icd_wsi = false;
@@ -457,7 +440,6 @@ TEST(WsiTests, CreateSurfaceXLIBICDSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.add_instance_extension({VK_KHR_SURFACE_EXTENSION_NAME});
     cur_icd.add_instance_extension({VK_KHR_XLIB_SURFACE_EXTENSION_NAME});
     cur_icd.enable_icd_wsi = true;
@@ -509,7 +491,6 @@ TEST(WsiTests, GetPhysicalDeviceXlibPresentNoICDSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.add_instance_extension({VK_KHR_SURFACE_EXTENSION_NAME});
     cur_icd.add_instance_extension({VK_KHR_XLIB_SURFACE_EXTENSION_NAME});
     cur_icd.physical_devices.emplace_back("physical_device_0");
@@ -537,7 +518,6 @@ TEST(WsiTests, GetPhysicalDeviceXlibPresentICDSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.add_instance_extension({VK_KHR_SURFACE_EXTENSION_NAME});
     cur_icd.add_instance_extension({VK_KHR_XLIB_SURFACE_EXTENSION_NAME});
     cur_icd.physical_devices.emplace_back("physical_device_0");
@@ -580,7 +560,6 @@ TEST(WsiTests, XlibGetPhysicalDeviceSurfaceSupportKHR) {
     VkXlibSurfaceCreateInfoKHR createInfo{VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR};
     ASSERT_EQ(VK_SUCCESS, env.vulkan_functions.vkCreateXlibSurfaceKHR(instance.inst, &createInfo, nullptr, &surface));
     ASSERT_TRUE(surface != VK_NULL_HANDLE);
-    //    ASSERT_EQ(driver.is_using_icd_wsi, UsingICDProvidedWSI::not_using);
 
     uint32_t device_count = max_device_count;
     std::array<VkPhysicalDevice, max_device_count> phys_devs;
@@ -603,7 +582,6 @@ TEST(WsiTests, CreateSurfaceWaylandNoICDSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.enable_icd_wsi = false;
 
     InstWrapper inst{env.vulkan_functions};
@@ -622,7 +600,6 @@ TEST(WsiTests, CreateSurfaceWaylandNoICDCreateSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.add_instance_extension({VK_KHR_SURFACE_EXTENSION_NAME});
     cur_icd.add_instance_extension({VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME});
     cur_icd.enable_icd_wsi = false;
@@ -646,7 +623,6 @@ TEST(WsiTests, CreateSurfaceWaylandICDSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.add_instance_extension({VK_KHR_SURFACE_EXTENSION_NAME});
     cur_icd.add_instance_extension({VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME});
     cur_icd.enable_icd_wsi = true;
@@ -698,7 +674,6 @@ TEST(WsiTests, GetPhysicalDeviceWaylandPresentNoICDSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.add_instance_extension({VK_KHR_SURFACE_EXTENSION_NAME});
     cur_icd.add_instance_extension({VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME});
     cur_icd.physical_devices.emplace_back("physical_device_0");
@@ -726,7 +701,6 @@ TEST(WsiTests, GetPhysicalDeviceWaylandPresentICDSupport) {
     env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
     auto& cur_icd = env.get_test_icd(0);
     cur_icd.set_min_icd_interface_version(5);
-    cur_icd.set_icd_api_version(VK_API_VERSION_1_0);
     cur_icd.add_instance_extension({VK_KHR_SURFACE_EXTENSION_NAME});
     cur_icd.add_instance_extension({VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME});
     cur_icd.physical_devices.emplace_back("physical_device_0");
@@ -769,7 +743,6 @@ TEST(WsiTests, WaylandGetPhysicalDeviceSurfaceSupportKHR) {
     VkWaylandSurfaceCreateInfoKHR createInfo{VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR};
     ASSERT_EQ(VK_SUCCESS, env.vulkan_functions.vkCreateWaylandSurfaceKHR(instance.inst, &createInfo, nullptr, &surface));
     ASSERT_TRUE(surface != VK_NULL_HANDLE);
-    //    ASSERT_EQ(cur_icd.is_using_icd_wsi, UsingICDProvidedWSI::not_using);
 
     uint32_t device_count = max_device_count;
     std::array<VkPhysicalDevice, max_device_count> phys_devs;
@@ -787,45 +760,34 @@ TEST(WsiTests, WaylandGetPhysicalDeviceSurfaceSupportKHR) {
 
 TEST(WsiTests, ForgetEnableSurfaceExtensions) {
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
-    auto& driver = env.get_test_icd();
-    setup_WSI_in_ICD(driver);
-    MockQueueFamilyProperties family_props{{VK_QUEUE_GRAPHICS_BIT, 1, 0, {1, 1, 1}}, true};
-
-    driver.physical_devices.emplace_back("physical_device_0");
-    driver.physical_devices.back().queue_family_properties.push_back(family_props);
-    driver.physical_devices.back().add_extension("VK_KHR_swapchain");
+    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2))
+        .setup_WSI()
+        .add_physical_device(PhysicalDevice{}.add_extension("VK_KHR_swapchain").finish());
 
     InstWrapper inst{env.vulkan_functions};
     inst.create_info.add_extension("VK_KHR_surface");
     ASSERT_NO_FATAL_FAILURE(inst.CheckCreate());
 
     VkSurfaceKHR surface{};
-    ASSERT_FALSE(create_surface(inst, surface));
+    ASSERT_EQ(VK_ERROR_EXTENSION_NOT_PRESENT, create_surface(inst, surface));
 }
 
 TEST(WsiTests, SwapchainFunctional) {
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2));
-    auto& driver = env.get_test_icd();
-    setup_WSI_in_ICD(driver);
-    MockQueueFamilyProperties family_props{{VK_QUEUE_GRAPHICS_BIT, 1, 0, {1, 1, 1}}, true};
-
-    driver.physical_devices.emplace_back("physical_device_0");
-    driver.physical_devices.back().queue_family_properties.push_back(family_props);
-    driver.physical_devices.back().add_extension("VK_KHR_swapchain");
+    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2))
+        .setup_WSI()
+        .add_physical_device(PhysicalDevice{}.add_extension("VK_KHR_swapchain").finish());
 
     InstWrapper inst{env.vulkan_functions};
-    setup_WSI_in_create_instance(inst);
+    inst.create_info.setup_WSI();
     inst.CheckCreate();
     VkSurfaceKHR surface{};
-    create_surface(inst, surface);
+    ASSERT_EQ(VK_SUCCESS, create_surface(inst, surface));
     VkPhysicalDevice phys_dev = inst.GetPhysDev();
 
     {  // Use GDPA to get functions
         DeviceWrapper dev{inst};
         dev.create_info.add_extension("VK_KHR_swapchain");
-        dev.create_info.add_device_queue(DeviceQueueCreateInfo{}.add_priority(0.0f));
 
         ASSERT_NO_FATAL_FAILURE(dev.CheckCreate(phys_dev));
 
@@ -844,7 +806,6 @@ TEST(WsiTests, SwapchainFunctional) {
     {  // Use GIPA gotten functions
         DeviceWrapper dev{inst};
         dev.create_info.add_extension("VK_KHR_swapchain");
-        dev.create_info.add_device_queue(DeviceQueueCreateInfo{}.add_priority(0.0f));
 
         ASSERT_NO_FATAL_FAILURE(dev.CheckCreate(phys_dev));
 
@@ -879,7 +840,6 @@ TEST(WsiTests, SwapchainFunctional) {
     {  // forget to set the surface
         DeviceWrapper dev{inst};
         dev.create_info.add_extension("VK_KHR_swapchain");
-        dev.create_info.add_device_queue(DeviceQueueCreateInfo{}.add_priority(0.0f));
 
         dev.CheckCreate(phys_dev);
 

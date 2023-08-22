@@ -22,8 +22,8 @@ Use the CMake configuration `UPDATE_DEPS=ON` to automatically get all required t
 Or Ensure that `googletest` is in the `external` directory.
 And on Windows only, ensure that the `Detours` library is in the `external` directory.
 
-Linux only: The CMake Configuration `TEST_USE_ADDRESS_SANITIZER` can be used to
-enable Address Sanitizer inside the testing framework.
+Linux & macOS only: The CMake Configuration `LOADER_ENABLE_ADDRESS_SANITIZER` can be used to
+enable Address Sanitizer.
 
 Run the test executables as normal
 
@@ -133,7 +133,7 @@ This is due to some functions being used to query other functions, which the shi
 There are many utilities that the test framework and tests have access to. These include:
 * Including common C and C++ headers
 * `FRAMEWORK_EXPORT` - macro used for exporting shared library funtions
-* Environment Variable helpers: `get_env_var`, `set_env_var`, `remove_env_var`
+* Environment Variable Wrapper: `EnvVarWrapper` for creating, setting, getting, and removing environment variables in a RAII manner
 * Windows API error handling helpers
 * filesystem abstractions:
   * `fs::path` - wrapper around std::string that has a similar API to C++17's `filesystem::path` library

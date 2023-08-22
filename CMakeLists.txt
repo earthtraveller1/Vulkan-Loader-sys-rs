@@ -1,6 +1,6 @@
 # ~~~
-# Copyright (c) 2014-2022 Valve Corporation
-# Copyright (c) 2014-2022 LunarG, Inc.
+# Copyright (c) 2014-2023 Valve Corporation
+# Copyright (c) 2014-2023 LunarG, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,84 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ~~~
-cmake_minimum_required(VERSION 3.10.2)
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+cmake_minimum_required(VERSION 3.17.2)
 
-# If we are building in Visual Studio 2015 and with a CMake version 3.19 or greater, we need to set this variable
-# so that CMake will choose a Windows SDK version higher than 10.0.14393.0, as dxgi1_6.h is only found in Windows SDK
-# 10.0.17763 and higher.
-set(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION_MAXIMUM OFF)
+project(VULKAN_LOADER VERSION 1.3.261)
 
-project(Vulkan-Loader)
-
-if (UPDATE_DEPS)
-    find_package(PythonInterp 3 REQUIRED)
-
-    if (CMAKE_GENERATOR_PLATFORM)
-        set(_target_arch ${CMAKE_GENERATOR_PLATFORM})
-    else()
-        if (MSVC_IDE)
-            message(WARNING "CMAKE_GENERATOR_PLATFORM not set. Using x64 as target architecture.")
-        endif()
-        set(_target_arch x64)
-    endif()
-
-    if (NOT CMAKE_BUILD_TYPE)
-        message(WARNING "CMAKE_BUILD_TYPE not set. Using Debug for dependency build type")
-        set(_build_type Debug)
-    else()
-        set(_build_type ${CMAKE_BUILD_TYPE})
-    endif()
-
-    set(_build_tests_arg "")
-    if (NOT BUILD_TESTS)
-        set(_build_tests_arg "--optional=tests")
-    endif()
-
-    message("********************************************************************************")
-    message("* NOTE: Adding target vl_update_deps to run as needed for updating             *")
-    message("*       dependencies.                                                          *")
-    message("********************************************************************************")
-
-    # Add a target so that update_deps.py will run when necessary
-    # NOTE: This is triggered off of the timestamps of known_good.json and helper.cmake
-    add_custom_command(OUTPUT ${CMAKE_CURRENT_LIST_DIR}/external/helper.cmake
-                       COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/update_deps.py --dir ${CMAKE_CURRENT_LIST_DIR}/external --arch ${_target_arch} --config ${_build_type} --generator "${CMAKE_GENERATOR}" ${_build_tests_arg}
-                       DEPENDS ${CMAKE_CURRENT_LIST_DIR}/scripts/known_good.json)
-
-    add_custom_target(vl_update_deps DEPENDS ${CMAKE_CURRENT_LIST_DIR}/external/helper.cmake)
-
-    # Check if update_deps.py needs to be run on first cmake run
-    if (${CMAKE_CURRENT_LIST_DIR}/scripts/known_good.json IS_NEWER_THAN ${CMAKE_CURRENT_LIST_DIR}/external/helper.cmake)
-        execute_process(
-            COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/update_deps.py --dir ${CMAKE_CURRENT_LIST_DIR}/external --arch ${_target_arch} --config ${_build_type} --generator "${CMAKE_GENERATOR}" ${_build_tests_arg}
-            WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-            RESULT_VARIABLE _update_deps_result
-        )
-        if (NOT (${_update_deps_result} EQUAL 0))
-            message(FATAL_ERROR "Could not run update_deps.py which is necessary to download dependencies.")
-        endif()
-    endif()
-    include(${CMAKE_CURRENT_LIST_DIR}/external/helper.cmake)
-else()
-    message("********************************************************************************")
-    message("* NOTE: Not adding target to run update_deps.py automatically.                 *")
-    message("********************************************************************************")
-    find_package(PythonInterp 3 QUIET)
-endif()
-if (VULKAN_HEADERS_INSTALL_DIR)
-    list(APPEND CMAKE_PREFIX_PATH ${VULKAN_HEADERS_INSTALL_DIR})
-endif()
-
-find_package(PythonInterp 3 QUIET)
+add_subdirectory(scripts)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-option(BUILD_TESTS "Build Tests" OFF)
-
-if(BUILD_TESTS)
-    enable_testing()
+# By default, loader & tests are built without sanitizers
+# Use these options to force a specific sanitizer on the loader and test executables
+if (UNIX)
+    option(LOADER_ENABLE_ADDRESS_SANITIZER "Linux & macOS only: Advanced memory checking" OFF)
+    option(LOADER_ENABLE_THREAD_SANITIZER "Linux & macOS only: Advanced thread checking" OFF)
 endif()
 
 if(APPLE)
@@ -109,13 +45,11 @@ if(BUILD_STATIC_LOADER)
         "or tested as part of the loader. Use it at your own risk.")
 endif()
 
-find_package(VulkanHeaders REQUIRED CONFIG QUIET)
+if (NOT TARGET Vulkan::Headers)
+    find_package(VulkanHeaders REQUIRED CONFIG QUIET)
+endif()
 
 include(GNUInstallDirs)
-
-if(UNIX AND NOT APPLE) # i.e.: Linux
-    find_package(PkgConfig)
-endif()
 
 set(GIT_BRANCH_NAME "--unknown--")
 set(GIT_TAG_INFO "--unknown--")
@@ -139,11 +73,6 @@ if (GIT_FOUND AND EXISTS "${CMAKE_CURRENT_LIST_DIR}/.git/HEAD")
     endif()
 endif()
 
-if(WIN32 AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    # Windows: if install locations not set by user, set install prefix to "<build_dir>\install".
-    set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/install" CACHE PATH "default install path" FORCE)
-endif()
-
 # Enable IDE GUI folders.  "Helper targets" that don't have interesting source code should set their FOLDER property to this
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(LOADER_HELPER_FOLDER "Helper Targets")
@@ -157,69 +86,52 @@ if(UNIX)
             "System-wide search directory. If not set or empty, CMAKE_INSTALL_FULL_SYSCONFDIR and /etc are used.")
 endif()
 
-# Because we use CMake 3.10.2, we can't use the policy which would disable adding /W3 by default. In the interim, replace the flags
-# When this project is updated to 3.15 and above, use the following line.
-#     cmake_policy(SET CMP0092 NEW)
-string(REGEX REPLACE "/W3" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-string(REGEX REPLACE "/W3" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-
 # For MSVC/Windows, replace /GR with an empty string, this prevents warnings of /GR being overriden by /GR-
 # Newer CMake versions (3.20) have better solutions for this through policy - using the old
 # way while waiting for when updating can occur
 string(REPLACE "/GR" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-if(UNIX AND NOT APPLE) # i.e.: Linux
+if(WIN32)
+    option(ENABLE_WIN10_ONECORE "Link the loader with OneCore umbrella libraries" OFF)
+endif()
+
+add_library(platform_wsi INTERFACE)
+if(WIN32)
+    target_compile_definitions(platform_wsi INTERFACE VK_USE_PLATFORM_WIN32_KHR)
+elseif(ANDROID)
+    target_compile_definitions(platform_wsi INTERFACE VK_USE_PLATFORM_ANDROID_KHR)
+elseif(APPLE)
+    target_compile_definitions(platform_wsi INTERFACE VK_USE_PLATFORM_MACOS_MVK VK_USE_PLATFORM_METAL_EXT)
+elseif(UNIX AND NOT APPLE) # i.e.: Linux
     option(BUILD_WSI_XCB_SUPPORT "Build XCB WSI support" ON)
     option(BUILD_WSI_XLIB_SUPPORT "Build Xlib WSI support" ON)
     option(BUILD_WSI_WAYLAND_SUPPORT "Build Wayland WSI support" ON)
     option(BUILD_WSI_DIRECTFB_SUPPORT "Build DirectFB WSI support" OFF)
     option(BUILD_WSI_SCREEN_QNX_SUPPORT "Build QNX Screen WSI support" OFF)
 
+    find_package(PkgConfig REQUIRED QUIET) # Use PkgConfig to find Linux system libraries
+
     if(BUILD_WSI_XCB_SUPPORT)
-        find_package(XCB REQUIRED)
-        include_directories(SYSTEM ${XCB_INCLUDE_DIR})
-    endif()
-
-    if(BUILD_WSI_XLIB_SUPPORT)
-        find_package(X11 REQUIRED)
-    endif()
-
-    if(BUILD_WSI_DIRECTFB_SUPPORT)
-        find_package(DirectFB REQUIRED)
-        include_directories(SYSTEM ${DIRECTFB_INCLUDE_DIR})
-    endif()
-
-    if(BUILD_WSI_SCREEN_QNX_SUPPORT)
-        # Part of OS, no additional include directories are required
-    endif()
-endif()
-
-if(WIN32)
-    option(ENABLE_WIN10_ONECORE "Link the loader with OneCore umbrella libraries" OFF)
-endif()
-
-add_library(platform_wsi_defines INTERFACE)
-if(WIN32)
-    target_compile_definitions(platform_wsi_defines INTERFACE VK_USE_PLATFORM_WIN32_KHR)
-elseif(ANDROID)
-    target_compile_definitions(platform_wsi_defines INTERFACE VK_USE_PLATFORM_ANDROID_KHR)
-elseif(APPLE)
-    target_compile_definitions(platform_wsi_defines INTERFACE VK_USE_PLATFORM_MACOS_MVK VK_USE_PLATFORM_METAL_EXT)
-elseif(UNIX AND NOT APPLE) # i.e.: Linux
-    if(BUILD_WSI_XCB_SUPPORT)
-        target_compile_definitions(platform_wsi_defines INTERFACE VK_USE_PLATFORM_XCB_KHR)
+        pkg_check_modules(XCB REQUIRED QUIET IMPORTED_TARGET xcb)
+        target_compile_definitions(platform_wsi INTERFACE VK_USE_PLATFORM_XCB_KHR)
+        target_link_libraries(platform_wsi INTERFACE PkgConfig::XCB)
     endif()
     if(BUILD_WSI_XLIB_SUPPORT)
-        target_compile_definitions(platform_wsi_defines INTERFACE VK_USE_PLATFORM_XLIB_KHR VK_USE_PLATFORM_XLIB_XRANDR_EXT)
+        pkg_check_modules(X11 REQUIRED QUIET IMPORTED_TARGET x11)
+        target_compile_definitions(platform_wsi INTERFACE VK_USE_PLATFORM_XLIB_KHR VK_USE_PLATFORM_XLIB_XRANDR_EXT)
+        target_link_libraries(platform_wsi INTERFACE PkgConfig::X11)
     endif()
     if(BUILD_WSI_WAYLAND_SUPPORT)
-        target_compile_definitions(platform_wsi_defines INTERFACE VK_USE_PLATFORM_WAYLAND_KHR)
+        target_compile_definitions(platform_wsi INTERFACE VK_USE_PLATFORM_WAYLAND_KHR)
     endif()
     if(BUILD_WSI_DIRECTFB_SUPPORT)
-        target_compile_definitions(platform_wsi_defines INTERFACE VK_USE_PLATFORM_DIRECTFB_EXT)
+        pkg_check_modules(DirectFB QUIET REQUIRED IMPORTED_TARGET directfb)
+        target_compile_definitions(platform_wsi INTERFACE VK_USE_PLATFORM_DIRECTFB_EXT)
+        target_link_libraries(platform_wsi INTERFACE PkgConfig::DirectFB)
     endif()
     if(BUILD_WSI_SCREEN_QNX_SUPPORT)
-        target_compile_definitions(platform_wsi_defines INTERFACE VK_USE_PLATFORM_SCREEN_QNX)
+        # Part of OS, no additional include directories are required
+        target_compile_definitions(platform_wsi INTERFACE VK_USE_PLATFORM_SCREEN_QNX)
     endif()
 else()
     message(FATAL_ERROR "Unsupported Platform!")
@@ -227,15 +139,20 @@ endif()
 
 add_library(loader_common_options INTERFACE)
 target_compile_definitions(loader_common_options INTERFACE API_NAME="Vulkan")
-target_link_libraries(loader_common_options INTERFACE platform_wsi_defines)
+target_link_libraries(loader_common_options INTERFACE platform_wsi)
 
 # Enable beta Vulkan extensions
 target_compile_definitions(loader_common_options INTERFACE VK_ENABLE_BETA_EXTENSIONS)
 
 target_compile_features(loader_common_options INTERFACE c_std_99)
-target_compile_features(loader_common_options INTERFACE cxx_std_11)
-set(LOADER_STANDARD_C_PROPERTIES PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS OFF)
-set(LOADER_STANDARD_CXX_PROPERTIES PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
+target_compile_features(loader_common_options INTERFACE cxx_std_17)
+set(LOADER_STANDARD_C_PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS OFF)
+set(LOADER_STANDARD_CXX_PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
+
+set(TESTS_STANDARD_CXX_PROPERTIES ${LOADER_STANDARD_CXX_PROPERTIES} MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+
+# Force the use of the multithreaded, static version of the C runtime.
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 option(ENABLE_WERROR "Enable warnings as errors" ON)
 
@@ -247,7 +164,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (CMAKE_CXX_COMPILER_ID STREQUAL "Cl
         target_compile_options(loader_common_options INTERFACE /WX)
     endif()
     target_compile_options(loader_common_options INTERFACE /W4)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     # using GCC or Clang with the regular front end
     if (ENABLE_WERROR)
         target_compile_options(loader_common_options INTERFACE -Werror)
@@ -255,8 +172,8 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "C
     target_compile_options(loader_common_options INTERFACE -Wall -Wextra)
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    target_compile_options(loader_common_options INTERFACE -Wno-unused-parameter -Wno-unused-function -Wno-missing-field-initializers)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    target_compile_options(loader_common_options INTERFACE -Wno-missing-field-initializers)
 
     # need to prepend /clang: to compiler arguments when using clang-cl
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND "${CMAKE_CXX_SIMULATE_ID}" MATCHES "MSVC")
@@ -267,6 +184,9 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         target_compile_options(loader_common_options INTERFACE -Wno-stringop-truncation -Wno-stringop-overflow)
+        if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 7.1)
+            target_compile_options(loader_common_options INTERFACE -Wshadow=local) #only added in GCC 7
+        endif()
     endif()
 
     if(UNIX)
@@ -279,18 +199,12 @@ endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND "${CMAKE_CXX_SIMULATE_ID}" MATCHES "MSVC"))
     # /GR-: Disable RTTI
     # /guard:cf: Enable control flow guard
-    # /wd4100: Disable warning on unreferenced formal parameter
     # /wd4152: Disable warning on conversion of a function pointer to a data pointer
     # /wd4201: Disable warning on anonymous struct/unions
-    target_compile_options(loader_common_options INTERFACE /GR- /guard:cf /wd4100 /wd4152 /wd4201)
+    target_compile_options(loader_common_options INTERFACE /GR- /guard:cf /wd4152 /wd4201)
 
     # Enable control flow guard
-    if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.13.0")
-        target_link_options(loader_common_options INTERFACE "LINKER:/guard:cf")
-    else()
-        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /guard:cf")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /guard:cf")
-    endif()
+    target_link_options(loader_common_options INTERFACE "LINKER:/guard:cf")
 
     # Prevent <windows.h> from polluting the code. guards against things like MIN and MAX
     target_compile_definitions(loader_common_options INTERFACE WIN32_LEAN_AND_MEAN)
@@ -317,17 +231,15 @@ if(NOT MSVC AND NOT (HAVE_SECURE_GETENV OR HAVE___SECURE_GETENV))
     message(WARNING "Using non-secure environmental lookups. This loader will not properly disable environent variables when run with elevated permissions.")
 endif()
 
-# Optional codegen target
-if(PYTHONINTERP_FOUND)
-    get_target_property(VulkanRegistry_DIR Vulkan::Registry INTERFACE_INCLUDE_DIRECTORIES)
-    add_custom_target(VulkanLoader_generated_source
-                      COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/generate_source.py
-                              ${VulkanRegistry_DIR} --incremental
-                      )
-else()
-    message("WARNING: VulkanLoader_generated_source target requires python 3")
+option(LOADER_CODEGEN "Enable vulkan loader code generation")
+if(LOADER_CODEGEN)
+    find_package(Python3 REQUIRED)
+    add_custom_target(loader_codegen
+        COMMAND Python3::Interpreter ${PROJECT_SOURCE_DIR}/scripts/generate_source.py
+            "${VULKAN_HEADERS_INSTALL_DIR}/${CMAKE_INSTALL_DATADIR}/vulkan/registry"
+            --generated-version ${VulkanHeaders_VERSION} --incremental
+    )
 endif()
-
 
 if(UNIX)
     target_compile_definitions(loader_common_options INTERFACE FALLBACK_CONFIG_DIRS="${FALLBACK_CONFIG_DIRS}" FALLBACK_DATA_DIRS="${FALLBACK_DATA_DIRS}")
@@ -345,18 +257,9 @@ if(UNIX)
     endif()
 endif()
 
-# uninstall target
-if(NOT TARGET uninstall)
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake_uninstall.cmake.in"
-                   "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
-                   IMMEDIATE
-                   @ONLY)
-    add_custom_target(uninstall COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
-    set_target_properties(uninstall PROPERTIES FOLDER ${LOADER_HELPER_FOLDER})
-endif()
-
 add_subdirectory(loader)
 
+option(BUILD_TESTS "Build Tests")
 if(BUILD_TESTS)
     # Set gtest build configuration
     # Attempt to enable if it is available.
@@ -368,6 +271,7 @@ if(BUILD_TESTS)
         set(BUILD_GMOCK OFF CACHE BOOL "Builds the googlemock subproject")
         set(gtest_force_shared_crt ON CACHE BOOL "Link gtest runtimes dynamically" FORCE)
         set(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries")
+        set(INSTALL_GTEST OFF CACHE BOOL "Don't install gtest")
         # The googletest directory exists, so enable it as a target.
         message(STATUS "Vulkan-Loader/external: " "googletest found - configuring it for tests")
         add_subdirectory("${GOOGLETEST_INSTALL_DIR}")
@@ -375,6 +279,11 @@ if(BUILD_TESTS)
         message(SEND_ERROR "Could not find googletest directory. Be sure to run update_deps.py with the --tests option to download the appropriate version of googletest")
         set(BUILD_TESTS OFF)
     endif()
+
+    # make sure gtest uses the dynamic runtime instead
+    set_target_properties(gtest PROPERTIES ${TESTS_STANDARD_CXX_PROPERTIES})
+    set_target_properties(gtest_main PROPERTIES ${TESTS_STANDARD_CXX_PROPERTIES})
+
     if (WIN32)
         if(TARGET detours)
             # Already enabled as a target (perhaps by a project enclosing this one)
@@ -447,7 +356,7 @@ if(BUILD_TESTS)
 
             if(MSVC)
                 target_compile_definitions(detours PUBLIC  "_CRT_SECURE_NO_WARNINGS=1")
-                set_target_properties(detours PROPERTIES COMPILE_FLAGS /EHsc)
+                set_target_properties(detours PROPERTIES COMPILE_FLAGS /EHsc ${TESTS_STANDARD_CXX_PROPERTIES})
             endif()
 
             # Silence errors found in clang-cl
@@ -458,7 +367,7 @@ if(BUILD_TESTS)
     endif()
 
     if (BUILD_TESTS)
+        enable_testing()
         add_subdirectory(tests)
     endif()
-
 endif()

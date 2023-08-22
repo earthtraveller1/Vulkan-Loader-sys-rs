@@ -1,7 +1,7 @@
 # ~~~
-# Copyright (c) 2014-2021 The Khronos Group Inc.
-# Copyright (c) 2014-2021 Valve Corporation
-# Copyright (c) 2014-2021 LunarG, Inc.
+# Copyright (c) 2014-2023 The Khronos Group Inc.
+# Copyright (c) 2014-2023 Valve Corporation
+# Copyright (c) 2014-2023 LunarG, Inc.
 # Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,27 +22,6 @@ target_link_libraries(loader_specific_options INTERFACE loader_common_options Vu
 target_include_directories(loader_specific_options INTERFACE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/generated ${CMAKE_CURRENT_BINARY_DIR})
 
 if(WIN32)
-    if(MSVC)
-        # Use static MSVCRT libraries
-        foreach(configuration
-                in
-                CMAKE_C_FLAGS_DEBUG
-                CMAKE_C_FLAGS_MINSIZEREL
-                CMAKE_C_FLAGS_RELEASE
-                CMAKE_C_FLAGS_RELWITHDEBINFO
-                CMAKE_CXX_FLAGS_DEBUG
-                CMAKE_CXX_FLAGS_MINSIZEREL
-                CMAKE_CXX_FLAGS_RELEASE
-                CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-            if(${configuration} MATCHES "/MD")
-                string(REGEX
-                    REPLACE "/MD"
-                            "/MT"
-                            ${configuration}
-                            "${${configuration}}")
-            endif()
-        endforeach()
-    endif()
 
     if(ENABLE_WIN10_ONECORE)
         # Note: When linking your app or driver to OneCore.lib, be sure to remove any links to non-umbrella libs (such as
@@ -51,7 +30,6 @@ if(WIN32)
         set(CMAKE_C_STANDARD_LIBRARIES ${CMAKE_CXX_STANDARD_LIBRARIES})
     endif()
 
-    target_compile_options(loader_specific_options INTERFACE -D_CRT_SECURE_NO_WARNINGS)
     # ~~~
     # Build dev_ext_trampoline.c and unknown_ext_chain.c with /O2 to allow tail-call optimization.
     # Setup two CMake targets (loader-norm and loader-opt) for the different compilation flags.
@@ -65,27 +43,24 @@ if(WIN32)
     separate_arguments(MODIFIED_C_FLAGS_DEBUG WINDOWS_COMMAND ${MODIFIED_C_FLAGS_DEBUG})
 
     # ~~~
-    # Setup the loader.rc flie to contain the correct info
-    # Optionally uses the BUILD_DLL_VERSIONINFO build option to allow setting the exact build version
-    # Adds "Dev Build" to any build without the BUILD_DLL_VERSIONINFO option set
+    # Only generate the loader.rc file with CMake if BUILD_DLL_VERSIONINFO was set.
+    # This feature is for the Vulkan Runtime build
+    # Otherwise rely on the checked in loader.rc from the python script
     # ~~~
-    if ("$CACHE{BUILD_DLL_VERSIONINFO}" STREQUAL "")
-        # default case - use 0 as the BUILDNO
-        set(LOADER_RC_VERSION "1.0.1111.2222")
-        set(LOADER_VER_FILE_VERSION_STR "\"${LOADER_RC_VERSION}.Dev Build\"")
-        set(LOADER_VER_FILE_DESCRIPTION_STR "\"Vulkan Loader - Dev Build\"")
-    else()
+    if (NOT "$CACHE{BUILD_DLL_VERSIONINFO}" STREQUAL "")
+        string(TIMESTAMP CURRENT_YEAR "%Y")
+        set(LOADER_CUR_COPYRIGHT_YEAR "${CURRENT_YEAR}")
         set(LOADER_RC_VERSION "$CACHE{BUILD_DLL_VERSIONINFO}")
         set(LOADER_VER_FILE_VERSION_STR "\"${LOADER_RC_VERSION}\"")
         set(LOADER_VER_FILE_DESCRIPTION_STR "\"Vulkan Loader\"")
+
+        # RC file wants the value of FILEVERSION to separated by commas
+        string(REPLACE "." ", " LOADER_VER_FILE_VERSION "${LOADER_RC_VERSION}")
+
+        # Configure the file to include the versioning info
+        # Place it in the build directory - the GN build will use the checked in file
+        configure_file(loader.rc.in ${CMAKE_CURRENT_BINARY_DIR}/loader.rc)
     endif()
-
-    # RC file wants the value of FILEVERSION to separated by commas
-    string(REPLACE "." ", " LOADER_VER_FILE_VERSION "${LOADER_RC_VERSION}")
-
-    # Configure the file to include the versioning info
-    # Place it in the current directory for check-in - so the GN build has up to date info
-    configure_file(loader.rc.in ${CMAKE_CURRENT_LIST_DIR}/loader.rc)
 else()
     # Used to make alloca() and secure_getenv() available
     target_compile_definitions(loader_specific_options INTERFACE _GNU_SOURCE)
@@ -100,17 +75,29 @@ endif()
 
 set(NORMAL_LOADER_SRCS
     allocation.c
+    allocation.h
     cJSON.c
+    cJSON.h
     debug_utils.c
+    debug_utils.h
     extension_manual.c
+    extension_manual.h
     loader_environment.c
+    loader_environment.h
     gpa_helper.c
+    gpa_helper.h
     loader.c
+    loader.h
     log.c
+    log.h
+    settings.c
+    settings.h
     terminator.c
     trampoline.c
     unknown_function_handling.c
+    unknown_function_handling.h
     wsi.c
+    wsi.h
     )
 
 if(WIN32)
@@ -137,7 +124,8 @@ if(WIN32)
                 if (COMPILER_VERSION_OUTPUT MATCHES "x86_64")
                     set(JWASM_FLAGS -win64)
                 else()
-                    set(JWASM_FLAGS -coff)
+                    # jwasm requires setting the cpu to at least 386 for setting a flat model
+                    set(JWASM_FLAGS -3 -coff)
                 endif()
             endif()
         endif()
@@ -164,13 +152,13 @@ if(WIN32)
             # Force off optimization so that the output assembly includes all the necessary info - optimizer would get rid of it otherwise.
             target_compile_options(asm_offset PRIVATE /Od)
 
-            find_package(PythonInterp REQUIRED)
+            find_package(Python3 REQUIRED QUIET)
             # Run parse_asm_values.py on asm_offset's assembly file to generate the gen_defines.asm, which the asm code depends on
             add_custom_command(TARGET asm_offset POST_BUILD
-                COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/parse_asm_values.py "${CMAKE_CURRENT_BINARY_DIR}/gen_defines.asm"
+                COMMAND Python3::Interpreter ${PROJECT_SOURCE_DIR}/scripts/parse_asm_values.py "${CMAKE_CURRENT_BINARY_DIR}/gen_defines.asm"
                     "$<TARGET_FILE_DIR:asm_offset>/asm_offset.asm" "MASM" "${CMAKE_CXX_COMPILER_ID}" "${CMAKE_SYSTEM_PROCESSOR}"
                 BYPRODUCTS gen_defines.asm
-                )
+            )
         endif()
         add_custom_target(loader_asm_gen_files DEPENDS gen_defines.asm)
         set_target_properties(loader_asm_gen_files PROPERTIES FOLDER ${LOADER_HELPER_FOLDER})
@@ -180,18 +168,10 @@ if(WIN32)
         target_include_directories(loader-unknown-chain PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
         add_dependencies(loader-unknown-chain loader_asm_gen_files)
     else()
+        set(USE_ASSEMBLY_FALLBACK ON)
         message(WARNING "Could not find working MASM assembler\n${ASM_FAILURE_MSG}")
-        add_custom_target(loader_asm_gen_files)
-        add_library(loader-unknown-chain OBJECT unknown_ext_chain.c)
-        target_link_libraries(loader-unknown-chain loader_specific_options)
-        set_target_properties(loader-unknown-chain PROPERTIES CMAKE_C_FLAGS_DEBUG "${MODIFIED_C_FLAGS_DEBUG}")
     endif()
-elseif(APPLE)
-    # For MacOS, use the C code and force the compiler's tail-call optimization instead of using assembly code.
-    set(OPT_LOADER_SRCS ${OPT_LOADER_SRCS} unknown_ext_chain.c)
-    set_source_files_properties(${OPT_LOADER_SRCS} PROPERTIES COMPILE_FLAGS -O)
-    add_custom_target(loader_asm_gen_files) # This causes no assembly files to be generated.
-else() # i.e.: Linux
+elseif(UNIX) # i.e.: Linux & Apple
     option(USE_GAS "Use GAS" ON)
     if(USE_GAS)
         enable_language(ASM)
@@ -199,7 +179,7 @@ else() # i.e.: Linux
         set(CMAKE_ASM_FLAGS "${CMAKE_C_FLAGS}")
         set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
-        if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+        if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64" OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64")
             try_compile(ASSEMBLER_WORKS ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/asm_test_aarch64.S)
             if(ASSEMBLER_WORKS)
                 set(OPT_LOADER_SRCS ${OPT_LOADER_SRCS} unknown_ext_chain_gas_aarch64.S)
@@ -236,28 +216,51 @@ else() # i.e.: Linux
             # Forces compiler to write the intermediate asm file, needed so that we can get sizeof/offset of info out of it.
             target_compile_options(asm_offset PRIVATE -save-temps=obj)
             if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+                set(ASM_OFFSET_EXECUTABLE_LOCATION "$<TARGET_FILE_DIR:asm_offset>/gen_defines.asm")
                 set(ASM_OFFSET_INTERMEDIATE_LOCATION "$<TARGET_FILE_DIR:asm_offset>/CMakeFiles/asm_offset.dir/asm_offset.c.s")
             elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+                set(ASM_OFFSET_EXECUTABLE_LOCATION "$<TARGET_FILE_DIR:asm_offset>/gen_defines.asm")
                 set(ASM_OFFSET_INTERMEDIATE_LOCATION "$<TARGET_FILE_DIR:asm_offset>/CMakeFiles/asm_offset.dir/asm_offset.s")
+            elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+            # Need to use the current binary dir since the asm_offset.s file is in that folder rather than the bundle
+                set(ASM_OFFSET_EXECUTABLE_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/gen_defines.asm")
+                set(ASM_OFFSET_INTERMEDIATE_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/asm_offset.dir/asm_offset.s")
+            else()
+                message(FATAL_ERROR "CXX_COMPILER_ID not supported!")
             endif()
 
-            find_package(PythonInterp REQUIRED)
+            find_package(Python3 REQUIRED QUIET)
             # Run parse_asm_values.py on asm_offset's assembly file to generate the gen_defines.asm, which the asm code depends on
             add_custom_command(TARGET asm_offset POST_BUILD
-                COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/parse_asm_values.py "$<TARGET_FILE_DIR:asm_offset>/gen_defines.asm"
+                COMMAND Python3::Interpreter ${PROJECT_SOURCE_DIR}/scripts/parse_asm_values.py "${ASM_OFFSET_EXECUTABLE_LOCATION}"
                     "${ASM_OFFSET_INTERMEDIATE_LOCATION}" "GAS" "${CMAKE_CXX_COMPILER_ID}" "${ASM_OFFSET_SYSTEM_PROCESSOR}"
                 BYPRODUCTS gen_defines.asm
-                )
+            )
         endif()
         add_custom_target(loader_asm_gen_files DEPENDS gen_defines.asm)
+
+        if (APPLE)
+            set(MODIFY_UNKNOWN_FUNCTION_DECLS ON)
+        endif()
     else()
+        set(USE_ASSEMBLY_FALLBACK ON)
         if(USE_GAS)
             message(WARNING "Could not find working ${ASM_OFFSET_SYSTEM_PROCESSOR} GAS assembler\n${ASM_FAILURE_MSG}")
         else()
             message(WARNING "Assembly sources have been disabled\n${ASM_FAILURE_MSG}")
         endif()
+    endif()
+endif()
+
+if(USE_ASSEMBLY_FALLBACK)
+    add_custom_target(loader_asm_gen_files)
+    if (MSVC)
+        add_library(loader-unknown-chain OBJECT unknown_ext_chain.c)
+        target_link_libraries(loader-unknown-chain loader_specific_options)
+        set_target_properties(loader-unknown-chain PROPERTIES CMAKE_C_FLAGS_DEBUG "${MODIFIED_C_FLAGS_DEBUG}")
+    else()
         set(OPT_LOADER_SRCS ${OPT_LOADER_SRCS} unknown_ext_chain.c)
-        add_custom_target(loader_asm_gen_files)
+        set_source_files_properties(${OPT_LOADER_SRCS} PROPERTIES COMPILE_FLAGS -O)
     endif()
 endif()
 
@@ -267,18 +270,26 @@ if(WIN32)
     add_dependencies(loader-opt loader_asm_gen_files)
     set_target_properties(loader-opt PROPERTIES CMAKE_C_FLAGS_DEBUG "${MODIFIED_C_FLAGS_DEBUG}")
 
+    # If BUILD_DLL_VERSIONINFO was set, use the loader.rc in the build dir, otherwise use the checked in file
+    set(RC_FILE_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/loader.rc)
+    if (NOT "$CACHE{BUILD_DLL_VERSIONINFO}" STREQUAL "")
+        set(RC_FILE_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/loader.rc)
+    endif()
+
+    if (MSVC)
+        set(LOADER_UNKNOWN_CHAIN_LIBRARY $<TARGET_OBJECTS:loader-unknown-chain>)
+    else()
+        set(LOADER_UNKNOWN_CHAIN_LIBRARY "")
+    endif()
+
     add_library(vulkan
                 SHARED
                 ${NORMAL_LOADER_SRCS}
-                $<TARGET_OBJECTS:loader-unknown-chain>
+                ${LOADER_UNKNOWN_CHAIN_LIBRARY}
                 ${CMAKE_CURRENT_SOURCE_DIR}/vulkan-1.def
-                ${CMAKE_CURRENT_LIST_DIR}/loader.rc)
+                ${RC_FILE_LOCATION})
 
     target_link_libraries(vulkan PRIVATE loader_specific_options loader-opt)
-
-    if (UPDATE_DEPS)
-        add_dependencies(vulkan vl_update_deps)
-    endif()
 
     # when adding the suffix the import and runtime library names must be consistent
     # mingw: libvulkan-1.dll.a / vulkan-1.dll
@@ -312,10 +323,19 @@ else()
     add_dependencies(vulkan loader_asm_gen_files)
     set_target_properties(vulkan
                           PROPERTIES SOVERSION "1"
-                          VERSION ${VulkanHeaders_VERSION})
+                          VERSION ${VULKAN_LOADER_VERSION})
     target_link_libraries(vulkan PRIVATE ${CMAKE_DL_LIBS} m)
     if (NOT ANDROID)
         target_link_libraries(vulkan PRIVATE Threads::Threads)
+    endif()
+
+    if (LOADER_ENABLE_ADDRESS_SANITIZER)
+        target_compile_options(vulkan PUBLIC -fsanitize=address)
+        target_link_options(vulkan PUBLIC -fsanitize=address)
+    endif()
+    if (LOADER_ENABLE_THREAD_SANITIZER)
+        target_compile_options(vulkan PUBLIC -fsanitize=thread)
+        target_link_options(vulkan PUBLIC -fsanitize=thread)
     endif()
 
     if(APPLE)
@@ -325,13 +345,8 @@ else()
         # Build vulkan.framework
         # Use GLOB_RECURSE to find all the header files and populate the vulkan.framework headers with them
         # Use CONFIGURE_DEPENDS to ensure that if the header files are updated, this list is also updated
-        # Note: CONFIGURE_DEPENDS is a 3.12 feature - gate it for now and remove when CMake minimum version is higher
         get_target_property(VulkanHeaders_INCLUDE_DIRS Vulkan::Headers INTERFACE_INCLUDE_DIRECTORIES)
-        if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.12.0")
-            file(GLOB_RECURSE CONFIGURE_DEPENDS FRAMEWORK_HEADERS ${VulkanHeaders_INCLUDE_DIRS})
-        else()
-            file(GLOB_RECURSE FRAMEWORK_HEADERS ${VulkanHeaders_INCLUDE_DIRS})
-        endif()
+        file(GLOB_RECURSE CONFIGURE_DEPENDS FRAMEWORK_HEADERS ${VulkanHeaders_INCLUDE_DIRS})
         if(BUILD_STATIC_LOADER)
             add_library(vulkan-framework STATIC ${NORMAL_LOADER_SRCS} ${OPT_LOADER_SRCS} ${FRAMEWORK_HEADERS})
         else()
@@ -341,17 +356,23 @@ else()
         target_link_libraries(vulkan-framework ${CMAKE_DL_LIBS} Threads::Threads -lm "-framework CoreFoundation")
         target_link_libraries(vulkan-framework loader_specific_options)
 
+        if (MODIFY_UNKNOWN_FUNCTION_DECLS)
+            # Modifies the names of functions as they appearin the assembly code so that the
+            # unknown function handling will work
+            target_compile_definitions(vulkan PRIVATE MODIFY_UNKNOWN_FUNCTION_DECLS)
+            target_compile_definitions(vulkan-framework PRIVATE MODIFY_UNKNOWN_FUNCTION_DECLS)
+        endif()
+
         # The FRAMEWORK_VERSION needs to be "A" here so that Xcode code-signing works when a user adds their framework to an Xcode
         # project and does "Sign on Copy". It would have been nicer to use "1" to denote Vulkan 1. Although Apple docs say that a
         # framework version does not have to be "A", this part of the Apple toolchain expects it.
         # https://forums.developer.apple.com/thread/65963
 
-# cmake-format: off
         set_target_properties(vulkan-framework PROPERTIES
             OUTPUT_NAME vulkan
             FRAMEWORK TRUE
             FRAMEWORK_VERSION A
-            VERSION "${VulkanHeaders_VERSION}" # "current version"
+            VERSION "${VULKAN_LOADER_VERSION}" # "current generated version"
             SOVERSION "1.0.0"                  # "compatibility version"
             MACOSX_FRAMEWORK_IDENTIFIER com.lunarg.vulkanFramework
             PUBLIC_HEADER "${FRAMEWORK_HEADERS}"
@@ -360,22 +381,25 @@ else()
             PUBLIC_HEADER DESTINATION vulkan
             FRAMEWORK DESTINATION loader
         )
-# cmake-format: on
     endif()
+endif()
+
+option(LOADER_USE_UNSAFE_FILE_SEARCH "Allows the loader to search in unsafe locations")
+if (LOADER_USE_UNSAFE_FILE_SEARCH)
+    target_compile_definitions(vulkan PRIVATE LOADER_USE_UNSAFE_FILE_SEARCH)
 endif()
 
 # common attributes of the vulkan library
 target_link_libraries(vulkan PRIVATE loader_specific_options)
 
-set_target_properties(vulkan ${LOADER_STANDARD_C_PROPERTIES})
+set_target_properties(vulkan PROPERTIES ${LOADER_STANDARD_C_PROPERTIES})
 if (TARGET asm_offset)
-    set_target_properties(asm_offset ${LOADER_STANDARD_C_PROPERTIES})
+    set_target_properties(asm_offset PROPERTIES ${LOADER_STANDARD_C_PROPERTIES})
 endif()
 
 # Generate pkg-config file.
 find_package(PkgConfig QUIET)
 if(PKG_CONFIG_FOUND)
-    set(VK_API_VERSION "${VulkanHeaders_VERSION}")
     set(PRIVATE_LIBS "")
     if (APPLE AND BUILD_STATIC_LOADER)
         # Libs.private should only be present when building a static loader
@@ -408,6 +432,7 @@ if(PKG_CONFIG_FOUND)
         file(RELATIVE_PATH CMAKE_INSTALL_REL_LIBDIR_PC ${CMAKE_INSTALL_PREFIX} ${CMAKE_INSTALL_FULL_LIBDIR_PC})
         file(RELATIVE_PATH CMAKE_INSTALL_REL_INCLUDEDIR_PC ${CMAKE_INSTALL_PREFIX} ${CMAKE_INSTALL_FULL_INCLUDEDIR})
     endif()
+    set(VULKAN_LOADER_PKG_CONFIG_NAME "Vulkan-Loader")
     configure_file("vulkan.pc.in" "vulkan.pc" @ONLY)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/vulkan.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 endif()

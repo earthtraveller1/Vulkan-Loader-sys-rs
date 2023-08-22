@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2021 The Khronos Group Inc.
- * Copyright (c) 2021 Valve Corporation
- * Copyright (c) 2021 LunarG, Inc.
+ * Copyright (c) 2021-2023 The Khronos Group Inc.
+ * Copyright (c) 2021-2023 Valve Corporation
+ * Copyright (c) 2021-2023 LunarG, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and/or associated documentation files (the "Materials"), to
@@ -34,7 +34,7 @@
 
 // Must include gtest first to guard against Xlib colliding due to redefinitions of "None" and "Bool"
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 #pragma warning(push)
 /*
     MSVC warnings 4251 and 4275 have to do with potential dll-interface mismatch
@@ -47,15 +47,15 @@
 #endif
 
 // GTest and Xlib collide due to redefinitions of "None" and "Bool"
-#ifdef VK_USE_PLATFORM_XLIB_KHR
+#if defined(VK_USE_PLATFORM_XLIB_KHR)
 #pragma push_macro("None")
 #pragma push_macro("Bool")
 #undef None
 #undef Bool
 #endif
 
-#ifdef _WIN32
-#ifndef NOMINMAX
+#if defined(_WIN32)
+#if !defined(NOMINMAX)
 #define NOMINMAX
 #endif
 #endif
@@ -71,6 +71,13 @@
 #include "icd/test_icd.h"
 
 #include "layer/test_layer.h"
+
+// Useful defines
+#if COMMON_UNIX_PLATFORMS
+#define HOME_DIR "/home/fake_home"
+#define USER_LOCAL_SHARE_DIR HOME_DIR "/.local/share"
+#define ETC_DIR "/etc"
+#endif
 
 // handle checking
 template <typename T>
@@ -180,45 +187,45 @@ struct VulkanFunctions {
     PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR vkGetPhysicalDeviceSurfaceCapabilities2KHR = nullptr;
     PFN_vkGetPhysicalDeviceSurfaceFormats2KHR vkGetPhysicalDeviceSurfaceFormats2KHR = nullptr;
 
-#ifdef VK_USE_PLATFORM_ANDROID_KHR
+#if defined(VK_USE_PLATFORM_ANDROID_KHR)
     PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR = nullptr;
 #endif  // VK_USE_PLATFORM_ANDROID_KHR
-#ifdef VK_USE_PLATFORM_DIRECTFB_EXT
+#if defined(VK_USE_PLATFORM_DIRECTFB_EXT)
     PFN_vkCreateDirectFBSurfaceEXT vkCreateDirectFBSurfaceEXT = nullptr;
     PFN_vkGetPhysicalDeviceDirectFBPresentationSupportEXT vkGetPhysicalDeviceDirectFBPresentationSupportEXT = nullptr;
 #endif  // VK_USE_PLATFORM_DIRECTFB_EXT
-#ifdef VK_USE_PLATFORM_FUCHSIA
+#if defined(VK_USE_PLATFORM_FUCHSIA)
     PFN_vkCreateImagePipeSurfaceFUCHSIA vkCreateImagePipeSurfaceFUCHSIA = nullptr;
 #endif  // VK_USE_PLATFORM_FUCHSIA
-#ifdef VK_USE_PLATFORM_GGP
+#if defined(VK_USE_PLATFORM_GGP)
     PFN_vkCreateStreamDescriptorSurfaceGGP vkCreateStreamDescriptorSurfaceGGP = nullptr;
 #endif  // VK_USE_PLATFORM_GGP
-#ifdef VK_USE_PLATFORM_IOS_MVK
+#if defined(VK_USE_PLATFORM_IOS_MVK)
     PFN_vkCreateIOSSurfaceMVK vkCreateIOSSurfaceMVK = nullptr;
 #endif  // VK_USE_PLATFORM_IOS_MVK
-#ifdef VK_USE_PLATFORM_MACOS_MVK
+#if defined(VK_USE_PLATFORM_MACOS_MVK)
     PFN_vkCreateMacOSSurfaceMVK vkCreateMacOSSurfaceMVK = nullptr;
 #endif  // VK_USE_PLATFORM_MACOS_MVK
-#ifdef VK_USE_PLATFORM_METAL_EXT
+#if defined(VK_USE_PLATFORM_METAL_EXT)
     PFN_vkCreateMetalSurfaceEXT vkCreateMetalSurfaceEXT = nullptr;
 #endif  // VK_USE_PLATFORM_METAL_EXT
-#ifdef VK_USE_PLATFORM_SCREEN_QNX
+#if defined(VK_USE_PLATFORM_SCREEN_QNX)
     PFN_vkCreateScreenSurfaceQNX vkCreateScreenSurfaceQNX = nullptr;
     PFN_vkGetPhysicalDeviceScreenPresentationSupportQNX vkGetPhysicalDeviceScreenPresentationSupportQNX = nullptr;
 #endif  // VK_USE_PLATFORM_SCREEN_QNX
-#ifdef VK_USE_PLATFORM_WAYLAND_KHR
+#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
     PFN_vkCreateWaylandSurfaceKHR vkCreateWaylandSurfaceKHR = nullptr;
     PFN_vkGetPhysicalDeviceWaylandPresentationSupportKHR vkGetPhysicalDeviceWaylandPresentationSupportKHR = nullptr;
 #endif  // VK_USE_PLATFORM_WAYLAND_KHR
-#ifdef VK_USE_PLATFORM_XCB_KHR
+#if defined(VK_USE_PLATFORM_XCB_KHR)
     PFN_vkCreateXcbSurfaceKHR vkCreateXcbSurfaceKHR = nullptr;
     PFN_vkGetPhysicalDeviceXcbPresentationSupportKHR vkGetPhysicalDeviceXcbPresentationSupportKHR = nullptr;
 #endif  // VK_USE_PLATFORM_XCB_KHR
-#ifdef VK_USE_PLATFORM_XLIB_KHR
+#if defined(VK_USE_PLATFORM_XLIB_KHR)
     PFN_vkCreateXlibSurfaceKHR vkCreateXlibSurfaceKHR = nullptr;
     PFN_vkGetPhysicalDeviceXlibPresentationSupportKHR vkGetPhysicalDeviceXlibPresentationSupportKHR = nullptr;
 #endif  // VK_USE_PLATFORM_XLIB_KHR
-#ifdef VK_USE_PLATFORM_WIN32_KHR
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
     PFN_vkCreateWin32SurfaceKHR vkCreateWin32SurfaceKHR = nullptr;
     PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR vkGetPhysicalDeviceWin32PresentationSupportKHR = nullptr;
 #endif  // VK_USE_PLATFORM_WIN32_KHR
@@ -258,13 +265,13 @@ struct DeviceFunctions {
     }
 };
 
-// InstWrapper & DeviceWrapper - used to make creating instances & devices easier test writing
+// InstWrapper & DeviceWrapper - used to make creating instances & devices easier when writing tests
 struct InstWrapper {
     InstWrapper(VulkanFunctions& functions, VkAllocationCallbacks* callbacks = nullptr) noexcept;
     InstWrapper(VulkanFunctions& functions, VkInstance inst, VkAllocationCallbacks* callbacks = nullptr) noexcept;
     ~InstWrapper() noexcept;
 
-    // Move-nly object
+    // Move-only object
     InstWrapper(InstWrapper const&) = delete;
     InstWrapper& operator=(InstWrapper const&) = delete;
     InstWrapper(InstWrapper&& other) noexcept;
@@ -272,6 +279,7 @@ struct InstWrapper {
 
     // Construct this VkInstance using googletest to assert if it succeeded
     void CheckCreate(VkResult result_to_check = VK_SUCCESS);
+    void CheckCreateWithInfo(InstanceCreateInfo& create_info, VkResult result_to_check = VK_SUCCESS);
 
     // Convenience
     operator VkInstance() { return inst; }
@@ -286,13 +294,22 @@ struct InstWrapper {
     // Enumerate a single physical device using googletest to assert if it succeeded
     VkPhysicalDevice GetPhysDev(VkResult result_to_check = VK_SUCCESS);
 
+    // Get all the list of active layers through vkEnumerateDeviceLayerProperties
+    // Use count to specify the expected count
+    std::vector<VkLayerProperties> GetActiveLayers(VkPhysicalDevice phys_dev, uint32_t count);
+
+    // Get list of device extensions associated with a VkPhysicalDevice
+    // Use count to specify an expected count
+    std::vector<VkExtensionProperties> EnumerateDeviceExtensions(VkPhysicalDevice physical_device, uint32_t count);
+    // Same as EnumerateDeviceExtensions but for a specific layer
+    std::vector<VkExtensionProperties> EnumerateLayerDeviceExtensions(VkPhysicalDevice physical_device, const char* layer_name,
+                                                                      uint32_t expected_count);
+
     VulkanFunctions* functions = nullptr;
     VkInstance inst = VK_NULL_HANDLE;
     VkAllocationCallbacks* callbacks = nullptr;
     InstanceCreateInfo create_info{};
 };
-
-std::vector<VkExtensionProperties> EnumerateDeviceExtensions(InstWrapper const& inst, VkPhysicalDevice physical_device);
 
 struct DeviceWrapper {
     DeviceWrapper(InstWrapper& inst_wrapper, VkAllocationCallbacks* callbacks = nullptr) noexcept;
@@ -322,10 +339,10 @@ struct DeviceWrapper {
 };
 
 struct DebugUtilsLogger {
-    static VkBool32 VKAPI_PTR DebugUtilsMessengerLoggerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                                                                VkDebugUtilsMessageTypeFlagsEXT messageTypes,
-                                                                const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-                                                                void* pUserData) {
+    static VkBool32 VKAPI_PTR
+    DebugUtilsMessengerLoggerCallback([[maybe_unused]] VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                                      [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+                                      const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
         DebugUtilsLogger* debug = reinterpret_cast<DebugUtilsLogger*>(pUserData);
         debug->returned_output += pCallbackData->pMessage;
         debug->returned_output += '\n';
@@ -405,10 +422,45 @@ VkResult CreateDebugUtilsMessenger(DebugUtilsWrapper& debug_utils);
 void FillDebugUtilsCreateDetails(InstanceCreateInfo& create_info, DebugUtilsLogger& logger);
 void FillDebugUtilsCreateDetails(InstanceCreateInfo& create_info, DebugUtilsWrapper& wrapper);
 
+struct LoaderSettingsLayerConfiguration {
+    BUILDER_VALUE(LoaderSettingsLayerConfiguration, std::string, name, {})
+    BUILDER_VALUE(LoaderSettingsLayerConfiguration, std::string, path, {})
+    BUILDER_VALUE(LoaderSettingsLayerConfiguration, std::string, control, {})
+    BUILDER_VALUE(LoaderSettingsLayerConfiguration, bool, treat_as_implicit_manifest, false)
+};
+inline bool operator==(LoaderSettingsLayerConfiguration const& a, LoaderSettingsLayerConfiguration const& b) {
+    return a.name == b.name && a.path == b.path && a.control == b.control &&
+           a.treat_as_implicit_manifest == b.treat_as_implicit_manifest;
+}
+inline bool operator!=(LoaderSettingsLayerConfiguration const& a, LoaderSettingsLayerConfiguration const& b) { return !(a == b); }
+inline bool operator<(LoaderSettingsLayerConfiguration const& a, LoaderSettingsLayerConfiguration const& b) {
+    return a.name < b.name;
+}
+inline bool operator>(LoaderSettingsLayerConfiguration const& a, LoaderSettingsLayerConfiguration const& b) { return (b < a); }
+inline bool operator<=(LoaderSettingsLayerConfiguration const& a, LoaderSettingsLayerConfiguration const& b) { return !(b < a); }
+inline bool operator>=(LoaderSettingsLayerConfiguration const& a, LoaderSettingsLayerConfiguration const& b) { return !(a < b); }
+
+// Log files and their associated filter
+struct LoaderLogConfiguration {
+    BUILDER_VECTOR(LoaderLogConfiguration, std::string, destinations, destination)
+    BUILDER_VECTOR(LoaderLogConfiguration, std::string, filters, filter)
+};
+struct AppSpecificSettings {
+    BUILDER_VECTOR(AppSpecificSettings, std::string, app_keys, app_key)
+    BUILDER_VECTOR(AppSpecificSettings, LoaderSettingsLayerConfiguration, layer_configurations, layer_configuration)
+    BUILDER_VECTOR(AppSpecificSettings, std::string, stderr_log, stderr_log_filter)
+    BUILDER_VECTOR(AppSpecificSettings, LoaderLogConfiguration, log_configurations, log_configuration)
+};
+
+struct LoaderSettings {
+    BUILDER_VALUE(LoaderSettings, ManifestVersion, file_format_version, {})
+    BUILDER_VECTOR(LoaderSettings, AppSpecificSettings, app_specific_settings, app_specific_setting);
+};
+
 struct FrameworkEnvironment;  // forward declaration
 
 struct PlatformShimWrapper {
-    PlatformShimWrapper(std::vector<fs::FolderManager>* folders, bool enable_log) noexcept;
+    PlatformShimWrapper(std::vector<fs::FolderManager>* folders, const char* log_filter) noexcept;
     ~PlatformShimWrapper() noexcept;
     PlatformShimWrapper(PlatformShimWrapper const&) = delete;
     PlatformShimWrapper& operator=(PlatformShimWrapper const&) = delete;
@@ -417,7 +469,8 @@ struct PlatformShimWrapper {
     PlatformShim* operator->() { return platform_shim; }
 
     LibraryWrapper shim_library;
-    PlatformShim* platform_shim;
+    PlatformShim* platform_shim = nullptr;
+    EnvVarWrapper loader_logging;
 };
 
 struct TestICDHandle {
@@ -427,12 +480,14 @@ struct TestICDHandle {
     TestICD& get_test_icd() noexcept;
     fs::path get_icd_full_path() noexcept;
     fs::path get_icd_manifest_path() noexcept;
+    fs::path get_shimmed_manifest_path() noexcept;
 
     // Must use statically
     LibraryWrapper icd_library;
     GetTestICDFunc proc_addr_get_test_icd = nullptr;
     GetNewTestICDFunc proc_addr_reset_icd = nullptr;
-    fs::path manifest_path;
+    fs::path manifest_path;  // path to the manifest file is on the actual filesystem (aka <build_folder>/tests/framework/<...>)
+    fs::path shimmed_manifest_path;  // path to where the loader will find the manifest file (eg /usr/local/share/vulkan/<...>)
 };
 struct TestLayerHandle {
     TestLayerHandle() noexcept;
@@ -441,33 +496,49 @@ struct TestLayerHandle {
     TestLayer& get_test_layer() noexcept;
     fs::path get_layer_full_path() noexcept;
     fs::path get_layer_manifest_path() noexcept;
+    fs::path get_shimmed_manifest_path() noexcept;
 
     // Must use statically
     LibraryWrapper layer_library;
     GetTestLayerFunc proc_addr_get_test_layer = nullptr;
     GetNewTestLayerFunc proc_addr_reset_layer = nullptr;
-    fs::path manifest_path;
+    fs::path manifest_path;  // path to the manifest file is on the actual filesystem (aka <build_folder>/tests/framework/<...>)
+    fs::path shimmed_manifest_path;  // path to where the loader will find the manifest file (eg /usr/local/share/vulkan/<...>)
 };
 
+// Controls whether to create a manifest and where to put it
 enum class ManifestDiscoveryType {
     generic,              // put the manifest in the regular locations
-    none,                 // don't add to regular locations - eg D3DKMT
+    unsecured_generic,    // put the manifest in a user folder rather than system
+    none,                 // Do not write the manifest anywhere (for Direct Driver Loading)
+    null_dir,             // put the manifest in the 'null_dir' which the loader does not search in (D3DKMT for instance)
     env_var,              // use the corresponding env-var for it
     add_env_var,          // use the corresponding add-env-var for it
     override_folder,      // add to a special folder for the override layer to use
     windows_app_package,  // let the app package search find it
+    macos_bundle,         // place it in a location only accessible to macos bundles
+};
+
+enum class LibraryPathType {
+    absolute,              // default for testing - the exact path of the binary
+    relative,              // Relative to the manifest file
+    default_search_paths,  // Dont add any path information to the library_path - force the use of the default search paths
 };
 
 struct TestICDDetails {
     TestICDDetails(ManifestICD icd_manifest) noexcept : icd_manifest(icd_manifest) {}
-    TestICDDetails(fs::path icd_path, uint32_t api_version = VK_API_VERSION_1_0) noexcept {
-        icd_manifest.set_lib_path(icd_path.str()).set_api_version(api_version);
+    TestICDDetails(fs::path icd_binary_path, uint32_t api_version = VK_API_VERSION_1_0) noexcept {
+        icd_manifest.set_lib_path(icd_binary_path.str()).set_api_version(api_version);
     }
     BUILDER_VALUE(TestICDDetails, ManifestICD, icd_manifest, {});
     BUILDER_VALUE(TestICDDetails, std::string, json_name, "test_icd");
+    // Uses the json_name without modification - default is to append _1 in the json file to distinguish drivers
     BUILDER_VALUE(TestICDDetails, bool, disable_icd_inc, false);
     BUILDER_VALUE(TestICDDetails, ManifestDiscoveryType, discovery_type, ManifestDiscoveryType::generic);
     BUILDER_VALUE(TestICDDetails, bool, is_fake, false);
+    // If discovery type is env-var, is_dir controls whether to use the path to the file or folder the manifest is in
+    BUILDER_VALUE(TestICDDetails, bool, is_dir, false);
+    BUILDER_VALUE(TestICDDetails, LibraryPathType, library_path_type, LibraryPathType::absolute);
 };
 
 struct TestLayerDetails {
@@ -477,9 +548,13 @@ struct TestLayerDetails {
     BUILDER_VALUE(TestLayerDetails, std::string, json_name, "test_layer");
     BUILDER_VALUE(TestLayerDetails, ManifestDiscoveryType, discovery_type, ManifestDiscoveryType::generic);
     BUILDER_VALUE(TestLayerDetails, bool, is_fake, false);
+    // If discovery type is env-var, is_dir controls whether to use the path to the file or folder the manifest is in
     BUILDER_VALUE(TestLayerDetails, bool, is_dir, true);
+    BUILDER_VALUE(TestLayerDetails, LibraryPathType, library_path_type, LibraryPathType::absolute);
 };
 
+// Locations manifests can go in the test framework
+// If this enum is added to - the contructor of FrameworkEnvironment also needs to be updated with the new enum value
 enum class ManifestLocation {
     null = 0,
     driver = 1,
@@ -490,14 +565,27 @@ enum class ManifestLocation {
     implicit_layer = 6,
     override_layer = 7,
     windows_app_package = 8,
+    macos_bundle = 9,
+    unsecured_location = 10,
+    settings_location = 11,
+};
+
+struct FrameworkSettings {
+    BUILDER_VALUE(FrameworkSettings, const char*, log_filter, "all");
+    BUILDER_VALUE(FrameworkSettings, bool, enable_default_search_paths, true);
+    BUILDER_VALUE(FrameworkSettings, LoaderSettings, loader_settings, {});
+    BUILDER_VALUE(FrameworkSettings, bool, secure_loader_settings, false);
 };
 
 struct FrameworkEnvironment {
     FrameworkEnvironment() noexcept;  // default is to enable VK_LOADER_DEBUG=all and enable the default search paths
-    FrameworkEnvironment(bool enable_log) noexcept;
-    FrameworkEnvironment(bool enable_log, bool enable_default_search_paths) noexcept;
+    FrameworkEnvironment(const FrameworkSettings& settings) noexcept;
+    ~FrameworkEnvironment();
+    // Delete copy constructors - this class should never move after being created
+    FrameworkEnvironment(const FrameworkEnvironment&) = delete;
+    FrameworkEnvironment& operator=(const FrameworkEnvironment&) = delete;
 
-    void add_icd(TestICDDetails icd_details) noexcept;
+    TestICD& add_icd(TestICDDetails icd_details) noexcept;
     void add_implicit_layer(ManifestLayer layer_manifest, const std::string& json_name) noexcept;
     void add_implicit_layer(TestLayerDetails layer_details) noexcept;
     void add_explicit_layer(ManifestLayer layer_manifest, const std::string& json_name) noexcept;
@@ -505,17 +593,38 @@ struct FrameworkEnvironment {
     void add_fake_implicit_layer(ManifestLayer layer_manifest, const std::string& json_name) noexcept;
     void add_fake_explicit_layer(ManifestLayer layer_manifest, const std::string& json_name) noexcept;
 
+    // resets the current settings with the values contained in loader_settings
+    void write_settings_file(std::string const& file_contents);
+    // apply any changes made to FrameworkEnvironment's loader_settings member
+    void update_loader_settings(const LoaderSettings& loader_settings) noexcept;
+    void remove_loader_settings();
+
     TestICD& get_test_icd(size_t index = 0) noexcept;
     TestICD& reset_icd(size_t index = 0) noexcept;
     fs::path get_test_icd_path(size_t index = 0) noexcept;
     fs::path get_icd_manifest_path(size_t index = 0) noexcept;
+    fs::path get_shimmed_icd_manifest_path(size_t index = 0) noexcept;
 
     TestLayer& get_test_layer(size_t index = 0) noexcept;
     TestLayer& reset_layer(size_t index = 0) noexcept;
     fs::path get_test_layer_path(size_t index = 0) noexcept;
     fs::path get_layer_manifest_path(size_t index = 0) noexcept;
+    fs::path get_shimmed_layer_manifest_path(size_t index = 0) noexcept;
 
     fs::FolderManager& get_folder(ManifestLocation location) noexcept;
+    fs::FolderManager const& get_folder(ManifestLocation location) const noexcept;
+#if defined(__APPLE__)
+    // Set the path of the app bundle to the appropriate test framework bundle
+    void setup_macos_bundle() noexcept;
+#endif
+
+    FrameworkSettings settings;
+
+    // Query the global extensions
+    // Optional: use layer_name to query the extensions of a specific layer
+    std::vector<VkExtensionProperties> GetInstanceExtensions(uint32_t count, const char* layer_name = nullptr);
+    // Query the available layers
+    std::vector<VkLayerProperties> GetLayerProperties(uint32_t count);
 
     PlatformShimWrapper platform_shim;
     std::vector<fs::FolderManager> folders;
@@ -526,37 +635,21 @@ struct FrameworkEnvironment {
     std::vector<TestICDHandle> icds;
     std::vector<TestLayerHandle> layers;
 
-    std::string env_var_vk_icd_filenames;
-    std::string add_env_var_vk_icd_filenames;
+    EnvVarWrapper env_var_vk_icd_filenames{"VK_DRIVER_FILES"};
+    EnvVarWrapper add_env_var_vk_icd_filenames{"VK_ADD_DRIVER_FILES"};
+    EnvVarWrapper env_var_vk_layer_paths{"VK_LAYER_PATH"};
+    EnvVarWrapper add_env_var_vk_layer_paths{"VK_ADD_LAYER_PATH"};
 
-    std::string env_var_vk_layer_paths;
-    std::string add_env_var_vk_layer_paths;
-
+    LoaderSettings loader_settings;  // the current settings written to disk
    private:
     void add_layer_impl(TestLayerDetails layer_details, ManifestCategory category);
 };
 
-// helper function which return a valid WSI platform extension
-// const char* api_selection: use this to select an extension on platforms that support multiple extensions
-const char* get_platform_wsi_extension(const char* api_selection = nullptr);
-
-// The following helpers setup an icd with the required extensions and setting to use with WSI
-// By default they use whatever the set VK_USE_PLATFORM_XXX macros define
-void setup_WSI_in_ICD(TestICD& icd, const char* api_selection = nullptr);
-void setup_WSI_in_create_instance(InstWrapper& inst, const char* api_selection = nullptr);
-
 // Create a surface using a platform specific API
 // api_selection: optionally provide a VK_USE_PLATFORM_XXX string to select which API to create a surface with.
 //    defaults to Metal on macOS and XCB on linux if not provided
-// Returns an assertion failure if the surface failed to be created
-testing::AssertionResult create_surface(InstWrapper& inst, VkSurfaceKHR& out_surface, const char* api_selection = nullptr);
-
-struct EnvVarCleaner {
-    std::string env_var;
-    EnvVarCleaner(std::string env_var) noexcept : env_var(env_var) {}
-    ~EnvVarCleaner() noexcept { remove_env_var(env_var); }
-
-    // delete copy operators
-    EnvVarCleaner(const EnvVarCleaner&) = delete;
-    EnvVarCleaner& operator=(const EnvVarCleaner&) = delete;
-};
+// Returns an VkResult with the result of surface creation
+// returns VK_ERROR_EXTENSION_NOT_PRESENT if it fails to load the surface creation function
+VkResult create_surface(InstWrapper& inst, VkSurfaceKHR& out_surface, const char* api_selection = nullptr);
+// Alternate parameter list for allocation callback tests
+VkResult create_surface(VulkanFunctions* functions, VkInstance inst, VkSurfaceKHR& surface, const char* api_selection = nullptr);

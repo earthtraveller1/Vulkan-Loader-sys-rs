@@ -45,7 +45,6 @@ void create_destroy_instance_loop_with_function_queries(FrameworkEnvironment* en
         VkPhysicalDevice phys_dev = inst.GetPhysDev();
 
         DeviceWrapper dev{inst};
-        dev.create_info.add_device_queue(DeviceQueueCreateInfo{}.add_priority(1.0));
         dev.CheckCreate(phys_dev);
         for (uint32_t j = 0; j < num_loops_try_get_device_proc_addr; j++) {
             PFN_vkCmdBindPipeline p = dev.load("vkCmdBindPipeline");
@@ -58,11 +57,9 @@ void create_destroy_device_loop(FrameworkEnvironment* env, uint32_t num_loops_cr
                                 uint32_t num_loops_try_get_proc_addr) {
     InstWrapper inst{env->vulkan_functions};
     inst.CheckCreate();
-    VkPhysicalDevice phys_dev = inst.GetPhysDev();
     for (uint32_t i = 0; i < num_loops_create_destroy_device; i++) {
         DeviceWrapper dev{inst};
-        dev.create_info.add_device_queue(DeviceQueueCreateInfo{}.add_priority(1.0));
-        dev.CheckCreate(phys_dev);
+        dev.CheckCreate(inst.GetPhysDev());
 
         for (uint32_t j = 0; j < num_loops_try_get_proc_addr; j++) {
             PFN_vkCmdBindPipeline p = dev.load("vkCmdBindPipeline");
@@ -78,31 +75,23 @@ void create_destroy_device_loop(FrameworkEnvironment* env, uint32_t num_loops_cr
         }
     }
 }
-VKAPI_ATTR void VKAPI_CALL test_vkCmdBindPipeline(VkCommandBuffer cmd_buf, VkPipelineBindPoint pipelineBindPoint,
-                                                  VkPipeline pipeline) {}
-VKAPI_ATTR void VKAPI_CALL test_vkCmdBindDescriptorSets(VkCommandBuffer cmd_buf, VkPipelineBindPoint pipelineBindPoint,
-                                                        VkPipelineLayout layout, uint32_t firstSet, uint32_t descriptorSetCount,
-                                                        const VkDescriptorSet* pDescriptorSets, uint32_t dynamicOffsetCount,
-                                                        const uint32_t* pDynamicOffsets) {}
-VKAPI_ATTR void VKAPI_CALL test_vkCmdBindVertexBuffers(VkCommandBuffer cmd_buf, uint32_t firstBinding, uint32_t bindingCount,
-                                                       const VkBuffer* pBuffers, const VkDeviceSize* pOffsets) {}
-VKAPI_ATTR void VKAPI_CALL test_vkCmdBindIndexBuffer(VkCommandBuffer cmd_buf, uint32_t firstBinding, uint32_t bindingCount,
-                                                     const VkBuffer* pBuffers, const VkDeviceSize* pOffsets) {}
-VKAPI_ATTR void VKAPI_CALL test_vkCmdDraw(VkCommandBuffer cmd_buf, uint32_t vertexCount, uint32_t instanceCount,
-                                          uint32_t firstVertex, uint32_t firstInstance) {}
+VKAPI_ATTR void VKAPI_CALL test_vkCmdBindPipeline(VkCommandBuffer, VkPipelineBindPoint, VkPipeline) {}
+VKAPI_ATTR void VKAPI_CALL test_vkCmdBindDescriptorSets(VkCommandBuffer, VkPipelineBindPoint, VkPipelineLayout, uint32_t, uint32_t,
+                                                        const VkDescriptorSet*, uint32_t, const uint32_t*) {}
+VKAPI_ATTR void VKAPI_CALL test_vkCmdBindVertexBuffers(VkCommandBuffer, uint32_t, uint32_t, const VkBuffer*, const VkDeviceSize*) {}
+VKAPI_ATTR void VKAPI_CALL test_vkCmdBindIndexBuffer(VkCommandBuffer, uint32_t, uint32_t, const VkBuffer*, const VkDeviceSize*) {}
+VKAPI_ATTR void VKAPI_CALL test_vkCmdDraw(VkCommandBuffer, uint32_t, uint32_t, uint32_t, uint32_t) {}
 TEST(Threading, InstanceCreateDestroyLoop) {
     const auto processor_count = std::thread::hardware_concurrency();
 
-    FrameworkEnvironment env{false};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
+    FrameworkEnvironment env{FrameworkSettings{}.set_log_filter("")};
+    auto& driver = env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
     uint32_t num_loops_create_destroy_instance = 500;
     uint32_t num_loops_try_get_instance_proc_addr = 5;
     uint32_t num_loops_try_get_device_proc_addr = 100;
-    auto& driver = env.get_test_icd();
 
-    driver.physical_devices.emplace_back("physical_device_0");
-    driver.physical_devices.back().known_device_functions.push_back(
-        {"vkCmdBindPipeline", to_vkVoidFunction(test_vkCmdBindPipeline)});
+    driver.physical_devices.emplace_back("physical_device_0")
+        .known_device_functions.push_back({"vkCmdBindPipeline", to_vkVoidFunction(test_vkCmdBindPipeline)});
 
     std::vector<std::thread> instance_creation_threads;
     std::vector<std::thread> function_query_threads;
@@ -119,23 +108,18 @@ TEST(Threading, InstanceCreateDestroyLoop) {
 TEST(Threading, DeviceCreateDestroyLoop) {
     const auto processor_count = std::thread::hardware_concurrency();
 
-    FrameworkEnvironment env{false};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
+    FrameworkEnvironment env{FrameworkSettings{}.set_log_filter("")};
+    auto& driver = env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
 
     uint32_t num_loops_create_destroy_device = 1000;
     uint32_t num_loops_try_get_device_proc_addr = 5;
-    auto& driver = env.get_test_icd();
 
-    driver.physical_devices.emplace_back("physical_device_0");
-    driver.physical_devices.back().known_device_functions.push_back(
-        {"vkCmdBindPipeline", to_vkVoidFunction(test_vkCmdBindPipeline)});
-    driver.physical_devices.back().known_device_functions.push_back(
-        {"vkCmdBindDescriptorSets", to_vkVoidFunction(test_vkCmdBindDescriptorSets)});
-    driver.physical_devices.back().known_device_functions.push_back(
-        {"vkCmdBindVertexBuffers", to_vkVoidFunction(test_vkCmdBindVertexBuffers)});
-    driver.physical_devices.back().known_device_functions.push_back(
-        {"vkCmdBindIndexBuffer", to_vkVoidFunction(test_vkCmdBindIndexBuffer)});
-    driver.physical_devices.back().known_device_functions.push_back({"vkCmdDraw", to_vkVoidFunction(test_vkCmdDraw)});
+    driver.physical_devices.emplace_back("physical_device_0").known_device_functions = {
+        {"vkCmdBindPipeline", to_vkVoidFunction(test_vkCmdBindPipeline)},
+        {"vkCmdBindDescriptorSets", to_vkVoidFunction(test_vkCmdBindDescriptorSets)},
+        {"vkCmdBindVertexBuffers", to_vkVoidFunction(test_vkCmdBindVertexBuffers)},
+        {"vkCmdBindIndexBuffer", to_vkVoidFunction(test_vkCmdBindIndexBuffer)},
+        {"vkCmdDraw", to_vkVoidFunction(test_vkCmdDraw)}};
 
     std::vector<std::thread> device_creation_threads;
 

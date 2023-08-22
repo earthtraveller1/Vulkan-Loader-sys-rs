@@ -30,8 +30,7 @@
 // Verify that the various ways to get vkGetInstanceProcAddr return the same value
 TEST(GetProcAddr, VerifyGetInstanceProcAddr) {
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
-    env.get_test_icd().physical_devices.emplace_back("physical_device_0");
+    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA)).add_physical_device("physical_device_0");
     {
         InstWrapper inst{env.vulkan_functions};
         inst.create_info.set_api_version(VK_API_VERSION_1_1);
@@ -62,8 +61,7 @@ TEST(GetProcAddr, VerifyGetInstanceProcAddr) {
 // Verify that the various ways to get vkGetDeviceProcAddr return the same value
 TEST(GetProcAddr, VerifyGetDeviceProcAddr) {
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
-    env.get_test_icd().physical_devices.emplace_back("physical_device_0");
+    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA)).add_physical_device("physical_device_0");
 
     InstWrapper inst{env.vulkan_functions};
     inst.create_info.set_api_version(VK_API_VERSION_1_1);
@@ -73,16 +71,13 @@ TEST(GetProcAddr, VerifyGetDeviceProcAddr) {
     // NOTE: The vulkan_functions are queried using the platform get proc addr from the loader.  So we'll compare
     //       that to what is returned by asking it what the various Vulkan get proc addr functions are.
     PFN_vkGetDeviceProcAddr gdpa_loader = env.vulkan_functions.vkGetDeviceProcAddr;
-    PFN_vkGetDeviceProcAddr gdpa_inst_queried =
-        reinterpret_cast<PFN_vkGetDeviceProcAddr>(env.vulkan_functions.vkGetInstanceProcAddr(inst.inst, "vkGetDeviceProcAddr"));
+    PFN_vkGetDeviceProcAddr gdpa_inst_queried = inst.load("vkGetDeviceProcAddr");
     ASSERT_EQ(gdpa_loader, gdpa_inst_queried);
 
     DeviceWrapper dev{inst};
-    dev.create_info.add_device_queue(DeviceQueueCreateInfo{}.add_priority(0.0f));
     dev.CheckCreate(phys_dev);
 
-    PFN_vkGetDeviceProcAddr gdpa_dev_queried =
-        reinterpret_cast<PFN_vkGetDeviceProcAddr>(env.vulkan_functions.vkGetDeviceProcAddr(dev.dev, "vkGetDeviceProcAddr"));
+    PFN_vkGetDeviceProcAddr gdpa_dev_queried = dev.load("vkGetDeviceProcAddr");
     ASSERT_EQ(gdpa_loader, gdpa_dev_queried);
 }
 
@@ -90,8 +85,7 @@ TEST(GetProcAddr, VerifyGetDeviceProcAddr) {
 // Call the function to make sure it is callable, don't care about what is returned.
 TEST(GetProcAddr, GlobalFunctions) {
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
-    env.get_test_icd().physical_devices.emplace_back("physical_device_0");
+    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA)).add_physical_device("physical_device_0");
 
     auto& gipa = env.vulkan_functions.vkGetInstanceProcAddr;
     // global entry points with NULL instance handle
@@ -126,29 +120,28 @@ TEST(GetProcAddr, GlobalFunctions) {
         inst.create_info.api_version = VK_MAKE_API_VERSION(0, 1, i, 0);
         inst.CheckCreate();
 
-        auto EnumerateInstanceExtensionProperties =
-            reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(gipa(inst, "vkEnumerateInstanceExtensionProperties"));
+        PFN_vkEnumerateInstanceExtensionProperties EnumerateInstanceExtensionProperties =
+            inst.load("vkEnumerateInstanceExtensionProperties");
         handle_assert_has_value(EnumerateInstanceExtensionProperties);
         uint32_t ext_count = 0;
         ASSERT_EQ(VK_SUCCESS, EnumerateInstanceExtensionProperties("", &ext_count, nullptr));
 
-        auto EnumerateInstanceLayerProperties =
-            reinterpret_cast<PFN_vkEnumerateInstanceLayerProperties>(gipa(inst, "vkEnumerateInstanceLayerProperties"));
+        PFN_vkEnumerateInstanceLayerProperties EnumerateInstanceLayerProperties = inst.load("vkEnumerateInstanceLayerProperties");
         handle_assert_has_value(EnumerateInstanceLayerProperties);
         uint32_t layer_count = 0;
         ASSERT_EQ(VK_SUCCESS, EnumerateInstanceLayerProperties(&layer_count, nullptr));
 
-        auto EnumerateInstanceVersion = reinterpret_cast<PFN_vkEnumerateInstanceVersion>(gipa(inst, "vkEnumerateInstanceVersion"));
+        PFN_vkEnumerateInstanceVersion EnumerateInstanceVersion = inst.load("vkEnumerateInstanceVersion");
         handle_assert_has_value(EnumerateInstanceVersion);
         uint32_t api_version = 0;
         EnumerateInstanceVersion(&api_version);
 
-        auto GetInstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(gipa(inst, "vkGetInstanceProcAddr"));
+        PFN_vkGetInstanceProcAddr GetInstanceProcAddr = inst.load("vkGetInstanceProcAddr");
         handle_assert_has_value(GetInstanceProcAddr);
         ASSERT_EQ(GetInstanceProcAddr,
                   reinterpret_cast<PFN_vkGetInstanceProcAddr>(GetInstanceProcAddr(inst, "vkGetInstanceProcAddr")));
 
-        auto CreateInstance = reinterpret_cast<PFN_vkCreateInstance>(gipa(inst, "vkCreateInstance"));
+        PFN_vkCreateInstance CreateInstance = inst.load("vkCreateInstance");
         handle_assert_has_value(CreateInstance);
     }
     {
@@ -157,31 +150,30 @@ TEST(GetProcAddr, GlobalFunctions) {
         inst.create_info.api_version = VK_MAKE_API_VERSION(0, 1, 3, 0);
         inst.CheckCreate();
 
-        auto EnumerateInstanceExtensionProperties =
-            reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(gipa(inst, "vkEnumerateInstanceExtensionProperties"));
+        PFN_vkEnumerateInstanceExtensionProperties EnumerateInstanceExtensionProperties =
+            inst.load("vkEnumerateInstanceExtensionProperties");
         handle_assert_null(EnumerateInstanceExtensionProperties);
 
-        auto EnumerateInstanceLayerProperties =
-            reinterpret_cast<PFN_vkEnumerateInstanceLayerProperties>(gipa(inst, "vkEnumerateInstanceLayerProperties"));
+        PFN_vkEnumerateInstanceLayerProperties EnumerateInstanceLayerProperties = inst.load("vkEnumerateInstanceLayerProperties");
         handle_assert_null(EnumerateInstanceLayerProperties);
 
-        auto EnumerateInstanceVersion = reinterpret_cast<PFN_vkEnumerateInstanceVersion>(gipa(inst, "vkEnumerateInstanceVersion"));
+        PFN_vkEnumerateInstanceVersion EnumerateInstanceVersion = inst.load("vkEnumerateInstanceVersion");
         handle_assert_null(EnumerateInstanceVersion);
 
-        auto CreateInstance = reinterpret_cast<PFN_vkCreateInstance>(gipa(inst, "vkCreateInstance"));
+        PFN_vkCreateInstance CreateInstance = inst.load("vkCreateInstance");
         handle_assert_null(CreateInstance);
 
-        auto GetInstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(gipa(inst, "vkGetInstanceProcAddr"));
+        PFN_vkGetInstanceProcAddr GetInstanceProcAddr = inst.load("vkGetInstanceProcAddr");
         handle_assert_equal(env.vulkan_functions.vkGetInstanceProcAddr, GetInstanceProcAddr);
         ASSERT_EQ(GetInstanceProcAddr,
                   reinterpret_cast<PFN_vkGetInstanceProcAddr>(GetInstanceProcAddr(inst, "vkGetInstanceProcAddr")));
         ASSERT_EQ(GetInstanceProcAddr,
                   reinterpret_cast<PFN_vkGetInstanceProcAddr>(GetInstanceProcAddr(NULL, "vkGetInstanceProcAddr")));
         // get a non pre-instance function pointer
-        auto EnumeratePhysicalDevices = reinterpret_cast<PFN_vkGetInstanceProcAddr>(gipa(inst, "vkEnumeratePhysicalDevices"));
+        PFN_vkEnumeratePhysicalDevices EnumeratePhysicalDevices = inst.load("vkEnumeratePhysicalDevices");
         handle_assert_has_value(EnumeratePhysicalDevices);
 
-        EnumeratePhysicalDevices = reinterpret_cast<PFN_vkGetInstanceProcAddr>(gipa(NULL, "vkEnumeratePhysicalDevices"));
+        EnumeratePhysicalDevices = reinterpret_cast<PFN_vkEnumeratePhysicalDevices>(gipa(NULL, "vkEnumeratePhysicalDevices"));
         handle_assert_null(EnumeratePhysicalDevices);
     }
 }
@@ -191,24 +183,22 @@ TEST(GetProcAddr, GlobalFunctions) {
 // and return VK_SUCCESS to maintain previous behavior.
 TEST(GetDeviceProcAddr, SwapchainFuncsWithTerminator) {
     FrameworkEnvironment env{};
-    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA));
-    setup_WSI_in_ICD(env.get_test_icd());
-    env.get_test_icd().physical_devices.emplace_back("physical_device_0");
+    auto& driver =
+        env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA)).setup_WSI().add_physical_device("physical_device_0");
 
     InstWrapper inst(env.vulkan_functions);
     inst.create_info.add_extension("VK_EXT_debug_utils");
-    setup_WSI_in_create_instance(inst);
+    inst.create_info.setup_WSI();
     ASSERT_NO_FATAL_FAILURE(inst.CheckCreate());
 
     VkSurfaceKHR surface{};
-    ASSERT_NO_FATAL_FAILURE(create_surface(inst, surface));
+    ASSERT_EQ(VK_SUCCESS, create_surface(inst, surface));
 
     DebugUtilsWrapper log{inst};
     ASSERT_EQ(VK_SUCCESS, CreateDebugUtilsMessenger(log));
     auto phys_dev = inst.GetPhysDev();
     {
         DeviceWrapper dev{inst};
-        dev.create_info.add_device_queue(DeviceQueueCreateInfo{}.add_priority(0.0f));
         ASSERT_NO_FATAL_FAILURE(dev.CheckCreate(phys_dev));
         DeviceFunctions dev_funcs{env.vulkan_functions, dev};
 
@@ -247,13 +237,10 @@ TEST(GetDeviceProcAddr, SwapchainFuncsWithTerminator) {
 
         if (CreateSharedSwapchainsKHR) CreateSharedSwapchainsKHR(dev.dev, 1, &info, nullptr, &swapchain);
     }
+    driver.physical_devices.at(0).add_extensions({"VK_KHR_swapchain", "VK_KHR_display_swapchain", "VK_EXT_debug_marker"});
     {
-        env.get_test_icd().physical_devices.at(0).add_extensions(
-            {"VK_KHR_swapchain", "VK_KHR_display_swapchain", "VK_EXT_debug_marker"});
-
         DeviceWrapper dev{inst};
         dev.create_info.add_extensions({"VK_KHR_swapchain", "VK_KHR_display_swapchain", "VK_EXT_debug_marker"});
-        dev.create_info.add_device_queue(DeviceQueueCreateInfo{}.add_priority(0.0f));
         ASSERT_NO_FATAL_FAILURE(dev.CheckCreate(phys_dev));
         DeviceFunctions dev_funcs{env.vulkan_functions, dev};
 
@@ -291,4 +278,199 @@ TEST(GetDeviceProcAddr, SwapchainFuncsWithTerminator) {
         if (CreateSharedSwapchainsKHR) CreateSharedSwapchainsKHR(dev.dev, 1, &info, nullptr, &swapchain);
     }
     env.vulkan_functions.vkDestroySurfaceKHR(inst.inst, surface, nullptr);
+}
+
+// Verify that the various ways to get vkGetDeviceProcAddr return the same value
+TEST(GetProcAddr, PreserveLayerGettingVkCreateDeviceWithNullInstance) {
+    FrameworkEnvironment env{};
+    env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2_EXPORT_ICD_GPDPA)).add_physical_device("physical_device_0");
+
+    env.add_implicit_layer(TestLayerDetails(ManifestLayer{}.add_layer(ManifestLayer::LayerDescription{}
+                                                                          .set_name("VK_LAYER_technically_buggy_layer")
+                                                                          .set_description("actually_layer_1")
+                                                                          .set_lib_path(TEST_LAYER_PATH_EXPORT_VERSION_2)
+                                                                          .set_disable_environment("if_you_can")),
+                                            "buggy_layer_1.json"));
+    env.get_test_layer().set_buggy_query_of_vkCreateDevice(true);
+    InstWrapper inst{env.vulkan_functions};
+    inst.create_info.set_api_version(VK_API_VERSION_1_1);
+    inst.CheckCreate();
+    VkPhysicalDevice phys_dev = inst.GetPhysDev();
+
+    DeviceWrapper dev{inst};
+    dev.CheckCreate(phys_dev);
+}
+
+// The following tests - AppQueries11FunctionsWhileOnlyEnabling10, AppQueries12FunctionsWhileOnlyEnabling11, and
+// AppQueries13FunctionsWhileOnlyEnabling12 - check that vkGetDeviceProcAddr only returning functions from core versions up to
+// the apiVersion declared in VkApplicationInfo. Function querying should succeed if VK_KHR_maintenance_5 is not enabled, and they
+// should return zero when that extension is enabled.
+
+TEST(GetDeviceProcAddr, AppQueries11FunctionsWhileOnlyEnabling10) {
+    FrameworkEnvironment env{};
+    auto& driver =
+        env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2, VK_API_VERSION_1_1))
+            .set_icd_api_version(VK_API_VERSION_1_1)
+            .add_physical_device(
+                PhysicalDevice{}.set_api_version(VK_API_VERSION_1_1).add_extension(VK_KHR_MAINTENANCE_5_EXTENSION_NAME).finish());
+
+    std::vector<const char*> functions = {"vkGetDeviceQueue2", "vkCmdDispatchBase", "vkCreateDescriptorUpdateTemplate"};
+    for (const auto& f : functions) {
+        driver.physical_devices.back().add_device_function(VulkanFunction{f, [] {}});
+    }
+    {  // doesn't enable the feature or extension
+        InstWrapper inst{env.vulkan_functions};
+        inst.create_info.set_api_version(1, 0, 0);
+        inst.CheckCreate();
+
+        DeviceWrapper dev{inst};
+        dev.CheckCreate(inst.GetPhysDev());
+        for (const auto& f : functions) {
+            ASSERT_NE(nullptr, dev->vkGetDeviceProcAddr(dev.dev, f));
+        }
+    }
+    {  // doesn't enable the feature
+        InstWrapper inst{env.vulkan_functions};
+        inst.create_info.set_api_version(1, 0, 0);
+        inst.CheckCreate();
+
+        DeviceWrapper dev{inst};
+        dev.create_info.add_extension(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);
+        dev.CheckCreate(inst.GetPhysDev());
+        for (const auto& f : functions) {
+            ASSERT_NE(nullptr, dev->vkGetDeviceProcAddr(dev.dev, f));
+        }
+    }
+    {  // enables the feature and extension
+        InstWrapper inst{env.vulkan_functions};
+        inst.create_info.set_api_version(1, 0, 0);
+        inst.CheckCreate();
+
+        VkPhysicalDeviceMaintenance5FeaturesKHR features{};
+        features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_5_FEATURES_KHR;
+        features.maintenance5 = VK_TRUE;
+
+        DeviceWrapper dev{inst};
+        dev.create_info.add_extension(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);
+        dev.create_info.dev.pNext = &features;
+        dev.CheckCreate(inst.GetPhysDev());
+        for (const auto& f : functions) {
+            ASSERT_EQ(nullptr, dev->vkGetDeviceProcAddr(dev.dev, f));
+        }
+    }
+}
+
+TEST(GetDeviceProcAddr, AppQueries12FunctionsWhileOnlyEnabling11) {
+    FrameworkEnvironment env{};
+    auto& driver =
+        env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2, VK_API_VERSION_1_2))
+            .set_icd_api_version(VK_API_VERSION_1_2)
+            .add_physical_device(
+                PhysicalDevice{}.set_api_version(VK_API_VERSION_1_2).add_extension(VK_KHR_MAINTENANCE_5_EXTENSION_NAME).finish());
+    std::vector<const char*> functions = {"vkCmdDrawIndirectCount", "vkCmdNextSubpass2", "vkGetBufferDeviceAddress",
+                                          "vkGetDeviceMemoryOpaqueCaptureAddress"};
+    for (const auto& f : functions) {
+        driver.physical_devices.back().add_device_function(VulkanFunction{f, [] {}});
+    }
+    {  // doesn't enable the feature or extension
+        InstWrapper inst{env.vulkan_functions};
+        inst.create_info.set_api_version(1, 1, 0);
+        inst.CheckCreate();
+
+        DeviceWrapper dev{inst};
+        dev.CheckCreate(inst.GetPhysDev());
+
+        for (const auto& f : functions) {
+            ASSERT_NE(nullptr, dev->vkGetDeviceProcAddr(dev.dev, f));
+        }
+    }
+    {  // doesn't enable the feature
+        InstWrapper inst{env.vulkan_functions};
+        inst.create_info.set_api_version(1, 1, 0);
+        inst.CheckCreate();
+
+        DeviceWrapper dev{inst};
+        dev.create_info.add_extension(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);
+        dev.CheckCreate(inst.GetPhysDev());
+
+        for (const auto& f : functions) {
+            ASSERT_NE(nullptr, dev->vkGetDeviceProcAddr(dev.dev, f));
+        }
+    }
+    {  // enables the feature and extension
+        InstWrapper inst{env.vulkan_functions};
+        inst.create_info.set_api_version(1, 1, 0);
+        inst.CheckCreate();
+
+        VkPhysicalDeviceMaintenance5FeaturesKHR features{};
+        features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_5_FEATURES_KHR;
+        features.maintenance5 = VK_TRUE;
+
+        DeviceWrapper dev{inst};
+        dev.create_info.add_extension(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);
+        dev.create_info.dev.pNext = &features;
+        dev.CheckCreate(inst.GetPhysDev());
+
+        for (const auto& f : functions) {
+            ASSERT_EQ(nullptr, dev->vkGetDeviceProcAddr(dev.dev, f));
+        }
+    }
+}
+
+TEST(GetDeviceProcAddr, AppQueries13FunctionsWhileOnlyEnabling12) {
+    FrameworkEnvironment env{};
+    auto& driver =
+        env.add_icd(TestICDDetails(TEST_ICD_PATH_VERSION_2, VK_API_VERSION_1_3))
+            .set_icd_api_version(VK_API_VERSION_1_3)
+            .add_physical_device(
+                PhysicalDevice{}.set_api_version(VK_API_VERSION_1_3).add_extension(VK_KHR_MAINTENANCE_5_EXTENSION_NAME).finish());
+    std::vector<const char*> functions = {"vkCreatePrivateDataSlot", "vkGetDeviceBufferMemoryRequirements", "vkCmdWaitEvents2",
+                                          "vkGetDeviceImageSparseMemoryRequirements"};
+
+    for (const auto& f : functions) {
+        driver.physical_devices.back().add_device_function(VulkanFunction{f, [] {}});
+    }
+    {  // doesn't enable the feature or extension
+        InstWrapper inst{env.vulkan_functions};
+        inst.create_info.set_api_version(1, 2, 0);
+        inst.CheckCreate();
+
+        DeviceWrapper dev{inst};
+        dev.CheckCreate(inst.GetPhysDev());
+
+        for (const auto& f : functions) {
+            ASSERT_NE(nullptr, dev->vkGetDeviceProcAddr(dev.dev, f));
+        }
+    }
+    {  // doesn't enable the feature
+        InstWrapper inst{env.vulkan_functions};
+        inst.create_info.set_api_version(1, 2, 0);
+        inst.CheckCreate();
+
+        DeviceWrapper dev{inst};
+        dev.create_info.add_extension(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);
+        dev.CheckCreate(inst.GetPhysDev());
+
+        for (const auto& f : functions) {
+            ASSERT_NE(nullptr, dev->vkGetDeviceProcAddr(dev.dev, f));
+        }
+    }
+    {  // enables the feature and extension
+        InstWrapper inst{env.vulkan_functions};
+        inst.create_info.set_api_version(1, 2, 0);
+        inst.CheckCreate();
+
+        VkPhysicalDeviceMaintenance5FeaturesKHR features{};
+        features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_5_FEATURES_KHR;
+        features.maintenance5 = VK_TRUE;
+
+        DeviceWrapper dev{inst};
+        dev.create_info.add_extension(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);
+        dev.create_info.dev.pNext = &features;
+        dev.CheckCreate(inst.GetPhysDev());
+
+        for (const auto& f : functions) {
+            ASSERT_EQ(nullptr, dev->vkGetDeviceProcAddr(dev.dev, f));
+        }
+    }
 }

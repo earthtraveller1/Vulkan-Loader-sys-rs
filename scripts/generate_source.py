@@ -26,6 +26,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import datetime
+import re
 
 # files to exclude from --verify check
 verify_exclude = ['.clang-format']
@@ -33,6 +35,7 @@ verify_exclude = ['.clang-format']
 def main(argv):
     parser = argparse.ArgumentParser(description='Generate source code for this repository')
     parser.add_argument('registry', metavar='REGISTRY_PATH', help='path to the Vulkan-Headers registry directory')
+    parser.add_argument('--generated-version', help='sets the header version used to generate the repo')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-i', '--incremental', action='store_true', help='only update repo files that change')
     group.add_argument('-v', '--verify', action='store_true', help='verify repo files match generator output')
@@ -41,8 +44,7 @@ def main(argv):
     gen_cmds = [[common_codegen.repo_relative('scripts/loader_genvk.py'),
                  '-registry', os.path.abspath(os.path.join(args.registry,  'vk.xml')),
                  '-quiet',
-                 filename] for filename in ['vk_dispatch_table_helper.h',
-                                            'vk_layer_dispatch_table.h',
+                 filename] for filename in ['vk_layer_dispatch_table.h',
                                             'vk_loader_extensions.h',
                                             'vk_loader_extensions.c',
                                             'vk_object_types.h']]
@@ -52,7 +54,7 @@ def main(argv):
     # get directory where generators will run
     if args.verify or args.incremental:
         # generate in temp directory so we can compare or copy later
-        temp_obj = tempfile.TemporaryDirectory(prefix='VulkanLoader_generated_source_')
+        temp_obj = tempfile.TemporaryDirectory(prefix='loader_codegen_')
         temp_dir = temp_obj.name
         gen_dir = temp_dir
     else:
@@ -105,6 +107,26 @@ def main(argv):
                not filecmp.cmp(temp_filename, repo_filename, shallow=False):
                 print('update', repo_filename)
                 shutil.copyfile(temp_filename, repo_filename)
+
+    # write out the header version used to generate the code to a checked in CMake FIle
+    if args.generated_version:
+        # Update the CMake project version
+        with open(common_codegen.repo_relative('CMakeLists.txt'), "r+") as f:
+            data = f.read()
+            f.seek(0)
+            f.write(re.sub("project.*VERSION.*", f"project(VULKAN_LOADER VERSION {args.generated_version})", data))
+            f.truncate()
+
+        with open(common_codegen.repo_relative('loader/loader.rc.in'), "r") as rc_file:
+            rc_file_contents = rc_file.read()
+        rc_ver = ', '.join(args.generated_version.split('.') + ['0'])
+        rc_file_contents = rc_file_contents.replace('${LOADER_VER_FILE_VERSION}', f'{rc_ver}')
+        rc_file_contents = rc_file_contents.replace('${LOADER_VER_FILE_DESCRIPTION_STR}', f'"{args.generated_version}.Dev Build"')
+        rc_file_contents = rc_file_contents.replace('${LOADER_VER_FILE_VERSION_STR}', f'"Vulkan Loader - Dev Build"')
+        rc_file_contents = rc_file_contents.replace('${LOADER_CUR_COPYRIGHT_YEAR}', f'{datetime.date.today().year}')
+        with open(common_codegen.repo_relative('loader/loader.rc'), "w") as rc_file_out:
+            rc_file_out.write(rc_file_contents)
+            rc_file_out.close()
 
     return 0
 

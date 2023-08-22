@@ -4,14 +4,14 @@
 [1]: https://vulkan.lunarg.com/img/Vulkan_100px_Dec16.png "https://www.khronos.org/vulkan/"
 [2]: https://www.khronos.org/vulkan/
 
-# Architecture of the Vulkan Loader Interfaces
+# Architecture of the Vulkan Loader Interfaces <!-- omit from toc -->
 [![Creative Commons][3]][4]
 
-<!-- Copyright &copy; 2015-2022 LunarG, Inc. -->
+<!-- Copyright &copy; 2015-2023 LunarG, Inc. -->
 
 [3]: https://i.creativecommons.org/l/by-nd/4.0/88x31.png "Creative Commons License"
 [4]: https://creativecommons.org/licenses/by-nd/4.0/
-## Table of Contents
+## Table of Contents <!-- omit from toc -->
 
 - [Overview](#overview)
   - [Who Should Read This Document](#who-should-read-this-document)
@@ -47,6 +47,8 @@
   - [Case-Insensitive](#case-insensitive)
   - [Environment Variable Priority](#environment-variable-priority)
 - [Table of Debug Environment Variables](#table-of-debug-environment-variables)
+  - [Active Environment Variables](#active-environment-variables)
+  - [Deprecated Environment Variables](#deprecated-environment-variables)
 - [Glossary of Terms](#glossary-of-terms)
 
 ## Overview
@@ -224,7 +226,7 @@ In the future, VkConfig may have additional interactions with the Vulkan
 loader.
 
 More details on VkConfig can be found in its
-[GitHub documentation](https://github.com/LunarG/VulkanTools/blob/master/vkconfig/README.md).
+[GitHub documentation](https://github.com/LunarG/VulkanTools/blob/main/vkconfig/README.md).
 <br/>
 <br/>
 
@@ -381,7 +383,7 @@ layers to marshall the appropriate information to all available drivers.
 For example, the diagram below represents what happens in the call chain for
 `vkCreateInstance`.
 After initializing the chain, the loader calls into the first layer's
-`vkCreateInstance`, which will call the next layer's `vkCreateInstance
+`vkCreateInstance`, which will call the next layer's `vkCreateInstance`
 before finally terminating in the loader again where it will call
 every driver's `vkCreateInstance`.
 This allows every enabled layer in the chain to set up what it needs based on
@@ -630,14 +632,15 @@ discovery.
     <td><small>
         Force the loader to use the specific driver JSON files.
         The value contains a list of delimited full path listings to
-        driver JSON Manifest files.<br/>
+        driver JSON Manifest files and/or
+        paths to folders containing driver JSON files.<br/>
         <br/>
         This has replaced the older deprecated environment variable
         <i>VK_ICD_FILENAMES</i>, however the older environment variable will
-        continue to work for some time.
+        continue to work.
     </small></td>
     <td><small>
-        If a global path to the JSON file is not used, issues may be encountered.
+        If a relative path not used, issues may be encountered.
         <br/> <br/>
         <a href="#elevated-privilege-caveats">
             Ignored when running Vulkan application with elevated privileges.
@@ -779,10 +782,10 @@ discovery.
     </small></td>
     <td><small>
         export<br/>
-        &nbsp;&nbsp;VK_LOADER_DRIVERS_SELECT=nvidia<br/>
+        &nbsp;&nbsp;VK_LOADER_DRIVERS_SELECT=nvidia*<br/>
         <br/>
         set<br/>
-        &nbsp;&nbsp;VK_LOADER_DRIVERS_SELECT=nvidia<br/><br/>
+        &nbsp;&nbsp;VK_LOADER_DRIVERS_SELECT=nvidia*<br/><br/>
         The above would select only the Nvidia driver if it was present on the
         system and already visible to the loader.
     </small></td>
@@ -883,6 +886,54 @@ discovery.
         &nbsp;&nbsp;VK_LOADER_LAYERS_DISABLE=*MESA*,~implicit~<br/><br/>
         The above would disable any Mesa layer and all other implicit layers
         that would normally be enabled on the system.
+    </small></td>
+  </tr>
+  <tr>
+  <td><small>
+    <i>VK_LOADER_LAYERS_ALLOW</i>
+    </small></td>
+    <td><small>
+        A comma-delimited list of globs to search for in known layers and
+        used to prevent layers whose layer name matches one or more of
+        the provided globs from being disabled by <i>VK_LOADER_LAYERS_DISABLE</i>.<br/>
+        Known layers are those which are found by the loader taking into account
+        default search paths and other environment variables
+        (like <i>VK_LAYER_PATH</i>).
+    </small></td>
+    <td><small>
+        This functionality is only available with Loaders built with version
+        1.3.262 of the Vulkan headers and later.<br/>
+        This will not cause layers to be enabled if the normal mechanism to
+        enable them
+    </small></td>
+    <td><small>
+        export<br/>
+        &nbsp;&nbsp;VK_LOADER_LAYERS_ALLOW=*validation*,*recon*<br/>
+        <br/>
+        set<br/>
+        &nbsp;&nbsp;VK_LOADER_LAYERS_ALLOW=*validation*,*recon*<br/><br/>
+        The above would allow any layer whose name is validation or recon to be
+        enabled regardless of the value of <i>VK_LOADER_LAYERS_DISABLE</i>.
+    </small></td>
+  </tr>
+  <tr>
+    <td><small>
+        <i>VK_LOADER_DISABLE_DYNAMIC_LIBRARY_UNLOADING</i>
+    </small></td>
+    <td><small>
+        If set to "1", causes the loader to not unload dynamic libraries during vkDestroyInstance.
+        This option allows leak sanitizers to have full stack traces.
+    </small></td>
+    <td><small>
+        This functionality is only available with Loaders built with version
+        1.3.259 of the Vulkan headers and later.<br/>
+    </small></td>
+    <td><small>
+        export<br/>
+        &nbsp;&nbsp;VK_LOADER_DISABLE_DYNAMIC_LIBRARY_UNLOADING=1<br/>
+        <br/>
+        set<br/>
+        &nbsp;&nbsp;VK_LOADER_DISABLE_DYNAMIC_LIBRARY_UNLOADING=1<br/><br/>
     </small></td>
   </tr>
 </table>
@@ -1188,6 +1239,33 @@ may be removed in a future loader release.
         See
         <a href="LoaderApplicationInterface.md#wsi-extensions">WSI Extensions</a>
         for more information.
+    </td>
+  </tr>
+  <tr>
+    <td>Exported Function</td>
+    <td>A function which is intended to be obtained through the platform specific
+        dynamic linker, specifically from a Driver or a Layer library.
+        Functions that are required to be exported are primarily the very first
+        functions the Loader calls on a Layer or Driver library. <br/>
+    </td>
+  </tr>
+  <tr>
+    <td>Exposed Function</td>
+    <td>A function which is intended to be obtained through a Querying Function, such as
+        `vkGetInstanceProcAddr`.
+        The exact Querying Function required for a specific exposed function varies
+        between Layers and Drivers, as well as between interface versions. <br/>
+    </td>
+  </tr>
+  <tr>
+    <td>Querying Functions</td>
+    <td>These are functions which allow the Loader to query other functions from
+        drivers and layers. These functions may be in the Vulkan API but also may be
+        from the private Loader and Driver Interface or the Loader and Layer Interface. <br/>
+        These functions are:
+        `vkGetInstanceProcAddr`, `vkGetDeviceProcAddr`,
+        `vk_icdGetInstanceProcAddr`, `vk_icdGetPhysicalDeviceProcAddr`, and
+        `vk_layerGetPhysicalDeviceProcAddr`.
     </td>
   </tr>
 </table>

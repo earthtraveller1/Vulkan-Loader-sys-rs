@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2021 The Khronos Group Inc.
- * Copyright (c) 2021 Valve Corporation
- * Copyright (c) 2021 LunarG, Inc.
+ * Copyright (c) 2021-2023 The Khronos Group Inc.
+ * Copyright (c) 2021-2023 Valve Corporation
+ * Copyright (c) 2021-2023 LunarG, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and/or associated documentation files (the "Materials"), to
@@ -96,45 +96,45 @@ void init_vulkan_functions(VulkanFunctions& funcs) {
     funcs.vkGetPhysicalDeviceSurfaceCapabilities2KHR = GPA(vkGetPhysicalDeviceSurfaceCapabilities2KHR);
     funcs.vkGetPhysicalDeviceSurfaceFormats2KHR = GPA(vkGetPhysicalDeviceSurfaceFormats2KHR);
 
-#ifdef VK_USE_PLATFORM_ANDROID_KHR
+#if defined(VK_USE_PLATFORM_ANDROID_KHR)
     funcs.vkCreateAndroidSurfaceKHR = GPA(vkCreateAndroidSurfaceKHR);
 #endif  // VK_USE_PLATFORM_ANDROID_KHR
-#ifdef VK_USE_PLATFORM_DIRECTFB_EXT
+#if defined(VK_USE_PLATFORM_DIRECTFB_EXT)
     funcs.vkCreateDirectFBSurfaceEXT = GPA(vkCreateDirectFBSurfaceEXT);
     funcs.vkGetPhysicalDeviceDirectFBPresentationSupportEXT = GPA(vkGetPhysicalDeviceDirectFBPresentationSupportEXT);
 #endif  // VK_USE_PLATFORM_DIRECTFB_EXT
-#ifdef VK_USE_PLATFORM_FUCHSIA
+#if defined(VK_USE_PLATFORM_FUCHSIA)
     funcs.vkCreateImagePipeSurfaceFUCHSIA = GPA(vkCreateImagePipeSurfaceFUCHSIA);
 #endif  // VK_USE_PLATFORM_FUCHSIA
-#ifdef VK_USE_PLATFORM_GGP
+#if defined(VK_USE_PLATFORM_GGP)
     funcs.vkCreateStreamDescriptorSurfaceGGP = GPA(vkCreateStreamDescriptorSurfaceGGP);
 #endif  // VK_USE_PLATFORM_GGP
-#ifdef VK_USE_PLATFORM_IOS_MVK
+#if defined(VK_USE_PLATFORM_IOS_MVK)
     funcs.vkCreateIOSSurfaceMVK = GPA(vkCreateIOSSurfaceMVK);
 #endif  // VK_USE_PLATFORM_IOS_MVK
-#ifdef VK_USE_PLATFORM_MACOS_MVK
+#if defined(VK_USE_PLATFORM_MACOS_MVK)
     funcs.vkCreateMacOSSurfaceMVK = GPA(vkCreateMacOSSurfaceMVK);
 #endif  // VK_USE_PLATFORM_MACOS_MVK
-#ifdef VK_USE_PLATFORM_METAL_EXT
+#if defined(VK_USE_PLATFORM_METAL_EXT)
     funcs.vkCreateMetalSurfaceEXT = GPA(vkCreateMetalSurfaceEXT);
 #endif  // VK_USE_PLATFORM_METAL_EXT
-#ifdef VK_USE_PLATFORM_SCREEN_QNX
+#if defined(VK_USE_PLATFORM_SCREEN_QNX)
     funcs.vkCreateScreenSurfaceQNX = GPA(vkCreateScreenSurfaceQNX);
     funcs.vkGetPhysicalDeviceScreenPresentationSupportQNX = GPA(vkGetPhysicalDeviceScreenPresentationSupportQNX);
 #endif  // VK_USE_PLATFORM_SCREEN_QNX
-#ifdef VK_USE_PLATFORM_WAYLAND_KHR
+#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
     funcs.vkCreateWaylandSurfaceKHR = GPA(vkCreateWaylandSurfaceKHR);
     funcs.vkGetPhysicalDeviceWaylandPresentationSupportKHR = GPA(vkGetPhysicalDeviceWaylandPresentationSupportKHR);
 #endif  // VK_USE_PLATFORM_WAYLAND_KHR
-#ifdef VK_USE_PLATFORM_XCB_KHR
+#if defined(VK_USE_PLATFORM_XCB_KHR)
     funcs.vkCreateXcbSurfaceKHR = GPA(vkCreateXcbSurfaceKHR);
     funcs.vkGetPhysicalDeviceXcbPresentationSupportKHR = GPA(vkGetPhysicalDeviceXcbPresentationSupportKHR);
 #endif  // VK_USE_PLATFORM_XCB_KHR
-#ifdef VK_USE_PLATFORM_XLIB_KHR
+#if defined(VK_USE_PLATFORM_XLIB_KHR)
     funcs.vkCreateXlibSurfaceKHR = GPA(vkCreateXlibSurfaceKHR);
     funcs.vkGetPhysicalDeviceXlibPresentationSupportKHR = GPA(vkGetPhysicalDeviceXlibPresentationSupportKHR);
 #endif  // VK_USE_PLATFORM_XLIB_KHR
-#ifdef VK_USE_PLATFORM_WIN32_KHR
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
     funcs.vkCreateWin32SurfaceKHR = GPA(vkCreateWin32SurfaceKHR);
     funcs.vkGetPhysicalDeviceWin32PresentationSupportKHR = GPA(vkGetPhysicalDeviceWin32PresentationSupportKHR);
 #endif  // VK_USE_PLATFORM_WIN32_KHR
@@ -194,6 +194,10 @@ void InstWrapper::CheckCreate(VkResult result_to_check) {
     ASSERT_EQ(result_to_check, functions->vkCreateInstance(create_info.get(), callbacks, &inst));
 }
 
+void InstWrapper::CheckCreateWithInfo(InstanceCreateInfo& create_info, VkResult result_to_check) {
+    ASSERT_EQ(result_to_check, functions->vkCreateInstance(create_info.get(), callbacks, &inst));
+}
+
 std::vector<VkPhysicalDevice> InstWrapper::GetPhysDevs(uint32_t phys_dev_count, VkResult result_to_check) {
     uint32_t physical_count = phys_dev_count;
     std::vector<VkPhysicalDevice> physical_devices;
@@ -206,6 +210,7 @@ std::vector<VkPhysicalDevice> InstWrapper::GetPhysDevs(uint32_t phys_dev_count, 
 std::vector<VkPhysicalDevice> InstWrapper::GetPhysDevs(VkResult result_to_check) {
     uint32_t physical_count = 0;
     VkResult res = functions->vkEnumeratePhysicalDevices(inst, &physical_count, nullptr);
+    EXPECT_EQ(result_to_check, res);
     std::vector<VkPhysicalDevice> physical_devices;
     physical_devices.resize(physical_count);
     res = functions->vkEnumeratePhysicalDevices(inst, &physical_count, physical_devices.data());
@@ -221,15 +226,41 @@ VkPhysicalDevice InstWrapper::GetPhysDev(VkResult result_to_check) {
     return physical_device;
 }
 
-std::vector<VkExtensionProperties> EnumerateDeviceExtensions(InstWrapper const& inst, VkPhysicalDevice physical_device) {
-    uint32_t ext_count = 1;
-    VkResult res = inst.functions->vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &ext_count, nullptr);
+std::vector<VkLayerProperties> InstWrapper::GetActiveLayers(VkPhysicalDevice phys_dev, uint32_t expected_count) {
+    uint32_t count = 0;
+    VkResult res = functions->vkEnumerateDeviceLayerProperties(phys_dev, &count, nullptr);
     EXPECT_EQ(VK_SUCCESS, res);
-    std::vector<VkExtensionProperties> extensions;
-    extensions.resize(ext_count);
-    res = inst.functions->vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &ext_count, extensions.data());
+    EXPECT_EQ(count, expected_count);
+    std::vector<VkLayerProperties> layer_props{count};
+    res = functions->vkEnumerateDeviceLayerProperties(phys_dev, &count, layer_props.data());
     EXPECT_EQ(VK_SUCCESS, res);
-    extensions.resize(ext_count);
+    EXPECT_EQ(count, expected_count);
+    return layer_props;
+}
+
+std::vector<VkExtensionProperties> InstWrapper::EnumerateDeviceExtensions(VkPhysicalDevice physical_device,
+                                                                          uint32_t expected_count) {
+    uint32_t count = 0;
+    VkResult res = functions->vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &count, nullptr);
+    EXPECT_EQ(VK_SUCCESS, res);
+    EXPECT_EQ(count, expected_count);
+    std::vector<VkExtensionProperties> extensions{count};
+    res = functions->vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &count, extensions.data());
+    EXPECT_EQ(VK_SUCCESS, res);
+    EXPECT_EQ(count, expected_count);
+    return extensions;
+}
+
+std::vector<VkExtensionProperties> InstWrapper::EnumerateLayerDeviceExtensions(VkPhysicalDevice physical_device,
+                                                                               const char* layer_name, uint32_t expected_count) {
+    uint32_t count = 0;
+    VkResult res = functions->vkEnumerateDeviceExtensionProperties(physical_device, layer_name, &count, nullptr);
+    EXPECT_EQ(VK_SUCCESS, res);
+    EXPECT_EQ(count, expected_count);
+    std::vector<VkExtensionProperties> extensions{count};
+    res = functions->vkEnumerateDeviceExtensionProperties(physical_device, layer_name, &count, extensions.data());
+    EXPECT_EQ(VK_SUCCESS, res);
+    EXPECT_EQ(count, expected_count);
     return extensions;
 }
 
@@ -296,19 +327,20 @@ bool FindPrefixPostfixStringOnLine(DebugUtilsLogger const& env_log, const char* 
     return env_log.find_prefix_then_postfix(prefix, postfix);
 }
 
-PlatformShimWrapper::PlatformShimWrapper(std::vector<fs::FolderManager>* folders, bool enable_log) noexcept {
+PlatformShimWrapper::PlatformShimWrapper(std::vector<fs::FolderManager>* folders, const char* log_filter) noexcept
+    : loader_logging{"VK_LOADER_DEBUG"} {
 #if defined(WIN32) || defined(__APPLE__)
     shim_library = LibraryWrapper(SHIM_LIBRARY_NAME);
     PFN_get_platform_shim get_platform_shim_func = shim_library.get_symbol(GET_PLATFORM_SHIM_STR);
     assert(get_platform_shim_func != NULL && "Must be able to get \"platform_shim\"");
     platform_shim = get_platform_shim_func(folders);
-#elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+#elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__GNU__)
     platform_shim = get_platform_shim(folders);
 #endif
     platform_shim->reset();
 
-    if (enable_log) {
-        set_env_var("VK_LOADER_DEBUG", "all");
+    if (log_filter) {
+        loader_logging.set_new_value(log_filter);
     }
 }
 
@@ -329,6 +361,7 @@ TestICD& TestICDHandle::reset_icd() noexcept {
 }
 fs::path TestICDHandle::get_icd_full_path() noexcept { return icd_library.lib_path; }
 fs::path TestICDHandle::get_icd_manifest_path() noexcept { return manifest_path; }
+fs::path TestICDHandle::get_shimmed_manifest_path() noexcept { return shimmed_manifest_path; }
 
 TestLayerHandle::TestLayerHandle() noexcept {}
 TestLayerHandle::TestLayerHandle(fs::path const& layer_path) noexcept : layer_library(layer_path) {
@@ -345,11 +378,11 @@ TestLayer& TestLayerHandle::reset_layer() noexcept {
 }
 fs::path TestLayerHandle::get_layer_full_path() noexcept { return layer_library.lib_path; }
 fs::path TestLayerHandle::get_layer_manifest_path() noexcept { return manifest_path; }
+fs::path TestLayerHandle::get_shimmed_manifest_path() noexcept { return shimmed_manifest_path; }
 
-FrameworkEnvironment::FrameworkEnvironment() noexcept : FrameworkEnvironment(true, true) {}
-FrameworkEnvironment::FrameworkEnvironment(bool enable_log) noexcept : FrameworkEnvironment(enable_log, true) {}
-FrameworkEnvironment::FrameworkEnvironment(bool enable_log, bool set_default_search_paths) noexcept
-    : platform_shim(&folders, enable_log), vulkan_functions() {
+FrameworkEnvironment::FrameworkEnvironment() noexcept : FrameworkEnvironment(FrameworkSettings{}) {}
+FrameworkEnvironment::FrameworkEnvironment(FrameworkSettings const& settings) noexcept
+    : settings(settings), platform_shim(&folders, settings.log_filter) {
     // This order is important, it matches the enum ManifestLocation, used to index the folders vector
     folders.emplace_back(FRAMEWORK_BUILD_DIRECTORY, std::string("null_dir"));
     folders.emplace_back(FRAMEWORK_BUILD_DIRECTORY, std::string("icd_manifests"));
@@ -360,16 +393,54 @@ FrameworkEnvironment::FrameworkEnvironment(bool enable_log, bool set_default_sea
     folders.emplace_back(FRAMEWORK_BUILD_DIRECTORY, std::string("implicit_layer_manifests"));
     folders.emplace_back(FRAMEWORK_BUILD_DIRECTORY, std::string("override_layer_manifests"));
     folders.emplace_back(FRAMEWORK_BUILD_DIRECTORY, std::string("app_package_manifests"));
+    folders.emplace_back(FRAMEWORK_BUILD_DIRECTORY, std::string("macos_bundle"));
+    folders.emplace_back(FRAMEWORK_BUILD_DIRECTORY, std::string("unsecured_location"));
+    folders.emplace_back(FRAMEWORK_BUILD_DIRECTORY, std::string("settings_location"));
 
     platform_shim->redirect_all_paths(get_folder(ManifestLocation::null).location());
-    if (set_default_search_paths) {
-        platform_shim->set_path(ManifestCategory::icd, get_folder(ManifestLocation::driver).location());
-        platform_shim->set_path(ManifestCategory::explicit_layer, get_folder(ManifestLocation::explicit_layer).location());
-        platform_shim->set_path(ManifestCategory::implicit_layer, get_folder(ManifestLocation::implicit_layer).location());
+    if (settings.enable_default_search_paths) {
+        platform_shim->set_fake_path(ManifestCategory::icd, get_folder(ManifestLocation::driver).location());
+        platform_shim->set_fake_path(ManifestCategory::explicit_layer, get_folder(ManifestLocation::explicit_layer).location());
+        platform_shim->set_fake_path(ManifestCategory::implicit_layer, get_folder(ManifestLocation::implicit_layer).location());
+#if COMMON_UNIX_PLATFORMS
+        auto home = get_env_var("HOME");
+        auto unsecured_location = get_folder(ManifestLocation::unsecured_location).location();
+        platform_shim->redirect_path(home + "/.local/share/vulkan/icd.d", unsecured_location);
+        platform_shim->redirect_path(home + "/.local/share/vulkan/implicit_layer.d", unsecured_location);
+        platform_shim->redirect_path(home + "/.local/share/vulkan/explicit_layer.d", unsecured_location);
+#endif
+    }
+#if COMMON_UNIX_PLATFORMS
+    if (settings.secure_loader_settings) {
+        platform_shim->redirect_path("/etc/vulkan/loader_settings.d", get_folder(ManifestLocation::settings_location).location());
+    } else {
+        platform_shim->redirect_path(get_env_var("HOME") + "/.local/share/vulkan/loader_settings.d",
+                                     get_folder(ManifestLocation::settings_location).location());
+    }
+#endif
+
+#if defined(__APPLE__)
+    // Necessary since bundles look in sub folders for manifests, not the test framework folder itself
+    auto bundle_location = get_folder(ManifestLocation::macos_bundle).location();
+    platform_shim->redirect_path(bundle_location / "vulkan/icd.d", bundle_location);
+    platform_shim->redirect_path(bundle_location / "vulkan/explicit_layer.d", bundle_location);
+    platform_shim->redirect_path(bundle_location / "vulkan/implicit_layer.d", bundle_location);
+#endif
+    // only set the settings file if there are elements in the app_specific_settings vector
+    if (!settings.loader_settings.app_specific_settings.empty()) {
+        update_loader_settings(settings.loader_settings);
     }
 }
 
-void FrameworkEnvironment::add_icd(TestICDDetails icd_details) noexcept {
+FrameworkEnvironment::~FrameworkEnvironment() {
+    // This is necessary to prevent the folder manager from using dead memory during destruction.
+    // What happens is that each folder manager tries to cleanup itself. Except, folders that were never called did not have their
+    // DirEntry array's filled out. So when that folder calls delete_folder, which calls readdir, the shim tries to order the files.
+    // Except, the list of files is in a object that is currently being destroyed.
+    platform_shim->is_during_destruction = true;
+}
+
+TestICD& FrameworkEnvironment::add_icd(TestICDDetails icd_details) noexcept {
     size_t cur_icd_index = icds.size();
     fs::FolderManager* folder = &get_folder(ManifestLocation::driver);
     if (icd_details.discovery_type == ManifestDiscoveryType::env_var ||
@@ -379,50 +450,95 @@ void FrameworkEnvironment::add_icd(TestICDDetails icd_details) noexcept {
     if (icd_details.discovery_type == ManifestDiscoveryType::windows_app_package) {
         folder = &get_folder(ManifestLocation::windows_app_package);
     }
+    if (icd_details.discovery_type == ManifestDiscoveryType::macos_bundle) {
+        folder = &get_folder(ManifestLocation::macos_bundle);
+    }
+    if (icd_details.discovery_type == ManifestDiscoveryType::unsecured_generic) {
+        folder = &get_folder(ManifestLocation::unsecured_location);
+    }
+    if (icd_details.discovery_type == ManifestDiscoveryType::null_dir ||
+        icd_details.discovery_type == ManifestDiscoveryType::none) {
+        folder = &get_folder(ManifestLocation::null);
+    }
     if (!icd_details.is_fake) {
         fs::path new_driver_name = fs::path(icd_details.icd_manifest.lib_path).stem() + "_" + std::to_string(cur_icd_index) +
                                    fs::path(icd_details.icd_manifest.lib_path).extension();
 
         auto new_driver_location = folder->copy_file(icd_details.icd_manifest.lib_path, new_driver_name.str());
 
+#if COMMON_UNIX_PLATFORMS
+        if (icd_details.library_path_type == LibraryPathType::default_search_paths) {
+            platform_shim->redirect_dlopen_name(new_driver_name, new_driver_location);
+        } else if (icd_details.library_path_type == LibraryPathType::relative) {
+            platform_shim->redirect_dlopen_name(fs::path(SYSCONFDIR) / "vulkan" / "icd.d" / "." / new_driver_name,
+                                                new_driver_location);
+        }
+#endif
+#if defined(WIN32)
+        if (icd_details.library_path_type == LibraryPathType::default_search_paths) {
+            SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_USER_DIRS);
+            AddDllDirectory(conver_str_to_wstr(new_driver_location.parent_path().str()).c_str());
+        }
+#endif
         icds.push_back(TestICDHandle(new_driver_location));
         icds.back().reset_icd();
-        icd_details.icd_manifest.lib_path = new_driver_location.str();
+        if (icd_details.library_path_type == LibraryPathType::relative) {
+            icd_details.icd_manifest.lib_path = fs::path(".") / new_driver_name;
+        } else if (icd_details.library_path_type == LibraryPathType::default_search_paths) {
+            icd_details.icd_manifest.lib_path = new_driver_name.str();
+        } else {
+            icd_details.icd_manifest.lib_path = new_driver_location.str();
+        }
     }
-    std::string full_json_name = icd_details.json_name;
-    if (!icd_details.disable_icd_inc) {
-        full_json_name += "_" + std::to_string(cur_icd_index);
-    }
-    full_json_name += ".json";
-
-    icds.back().manifest_path = folder->write_manifest(full_json_name, icd_details.icd_manifest.get_manifest_str());
-    switch (icd_details.discovery_type) {
-        default:
-        case (ManifestDiscoveryType::generic):
-            platform_shim->add_manifest(ManifestCategory::icd, icds.back().manifest_path);
-            break;
-        case (ManifestDiscoveryType::env_var):
-            if (!env_var_vk_icd_filenames.empty()) {
-                env_var_vk_icd_filenames += OS_ENV_VAR_LIST_SEPARATOR;
-            }
-            env_var_vk_icd_filenames += (folder->location() / full_json_name).str();
-            set_env_var("VK_DRIVER_FILES", env_var_vk_icd_filenames);
-            break;
-        case (ManifestDiscoveryType::add_env_var):
-            if (!add_env_var_vk_icd_filenames.empty()) {
-                add_env_var_vk_icd_filenames += OS_ENV_VAR_LIST_SEPARATOR;
-            }
-            add_env_var_vk_icd_filenames += (folder->location() / full_json_name).str();
-            set_env_var("VK_ADD_DRIVER_FILES", add_env_var_vk_icd_filenames);
-            break;
-        case (ManifestDiscoveryType::none):
-            break;
-#ifdef _WIN32
-        case (ManifestDiscoveryType::windows_app_package):
-            platform_shim->set_app_package_path(folder->location());
-            break;
+    if (icd_details.discovery_type != ManifestDiscoveryType::none) {
+        std::string full_json_name = icd_details.json_name;
+        if (!icd_details.disable_icd_inc) {
+            full_json_name += "_" + std::to_string(cur_icd_index);
+        }
+        full_json_name += ".json";
+        icds.back().manifest_path = folder->write_manifest(full_json_name, icd_details.icd_manifest.get_manifest_str());
+        icds.back().shimmed_manifest_path = icds.back().manifest_path;
+        switch (icd_details.discovery_type) {
+            default:
+            case (ManifestDiscoveryType::generic):
+                platform_shim->add_manifest(ManifestCategory::icd, icds.back().manifest_path);
+#if COMMON_UNIX_PLATFORMS
+                icds.back().shimmed_manifest_path =
+                    platform_shim->query_default_redirect_path(ManifestCategory::icd) / full_json_name;
 #endif
+                break;
+            case (ManifestDiscoveryType::env_var):
+                if (icd_details.is_dir) {
+                    env_var_vk_icd_filenames.add_to_list(folder->location().str());
+                } else {
+                    env_var_vk_icd_filenames.add_to_list((folder->location() / full_json_name).str());
+                }
+                platform_shim->add_known_path(folder->location());
+                break;
+            case (ManifestDiscoveryType::add_env_var):
+                if (icd_details.is_dir) {
+                    add_env_var_vk_icd_filenames.add_to_list(folder->location().str());
+                } else {
+                    add_env_var_vk_icd_filenames.add_to_list((folder->location() / full_json_name).str());
+                }
+                platform_shim->add_known_path(folder->location());
+                break;
+            case (ManifestDiscoveryType::macos_bundle):
+                platform_shim->add_manifest(ManifestCategory::icd, icds.back().manifest_path);
+                break;
+            case (ManifestDiscoveryType::unsecured_generic):
+                platform_shim->add_unsecured_manifest(ManifestCategory::icd, icds.back().manifest_path);
+                break;
+            case (ManifestDiscoveryType::null_dir):
+                break;
+#if defined(_WIN32)
+            case (ManifestDiscoveryType::windows_app_package):
+                platform_shim->set_app_package_path(folder->location());
+                break;
+#endif
+        }
     }
+    return icds.back().get_test_icd();
 }
 
 void FrameworkEnvironment::add_implicit_layer(ManifestLayer layer_manifest, const std::string& json_name) noexcept {
@@ -453,39 +569,60 @@ void FrameworkEnvironment::add_layer_impl(TestLayerDetails layer_details, Manife
             break;
         case (ManifestDiscoveryType::env_var):
             fs_ptr = &get_folder(ManifestLocation::explicit_layer_env_var);
-            if (!env_var_vk_layer_paths.empty()) {
-                env_var_vk_layer_paths += OS_ENV_VAR_LIST_SEPARATOR;
-            }
-            if(layer_details.is_dir) {
-                env_var_vk_layer_paths += fs_ptr->location().str();
+            if (layer_details.is_dir) {
+                env_var_vk_layer_paths.add_to_list(fs_ptr->location().str());
             } else {
-                env_var_vk_layer_paths += fs_ptr->location().str() + OS_ENV_VAR_LIST_SEPARATOR + layer_details.json_name;
+                env_var_vk_layer_paths.add_to_list((fs_ptr->location() / layer_details.json_name).str());
             }
-            env_var_vk_layer_paths += fs_ptr->location().str();
-            set_env_var("VK_LAYER_PATH", env_var_vk_layer_paths);
+            platform_shim->add_known_path(fs_ptr->location());
             break;
         case (ManifestDiscoveryType::add_env_var):
             fs_ptr = &get_folder(ManifestLocation::explicit_layer_add_env_var);
-            if (!add_env_var_vk_layer_paths.empty()) {
-                add_env_var_vk_layer_paths += OS_ENV_VAR_LIST_SEPARATOR;
+            if (layer_details.is_dir) {
+                add_env_var_vk_layer_paths.add_to_list(fs_ptr->location().str());
+            } else {
+                add_env_var_vk_layer_paths.add_to_list((fs_ptr->location() / layer_details.json_name).str());
             }
-            add_env_var_vk_layer_paths += fs_ptr->location().str();
-            set_env_var("VK_ADD_LAYER_PATH", add_env_var_vk_layer_paths);
+            platform_shim->add_known_path(fs_ptr->location());
             break;
         case (ManifestDiscoveryType::override_folder):
             fs_ptr = &get_folder(ManifestLocation::override_layer);
             break;
+        case (ManifestDiscoveryType::macos_bundle):
+            fs_ptr = &(get_folder(ManifestLocation::macos_bundle));
+            break;
+        case (ManifestDiscoveryType::unsecured_generic):
+            fs_ptr = &(get_folder(ManifestLocation::unsecured_location));
+            break;
         case (ManifestDiscoveryType::none):
+        case (ManifestDiscoveryType::null_dir):
+            fs_ptr = &(get_folder(ManifestLocation::null));
             break;
     }
     auto& folder = *fs_ptr;
     size_t new_layers_start = layers.size();
     for (auto& layer : layer_details.layer_manifest.layers) {
-        size_t cur_layer_index = layers.size();
         if (!layer.lib_path.str().empty()) {
-            std::string new_layer_name = layer.name + "_" + std::to_string(cur_layer_index) + "_" + layer.lib_path.filename().str();
+            fs::path layer_binary_name =
+                layer.lib_path.filename().stem() + "_" + std::to_string(layers.size()) + layer.lib_path.filename().extension();
 
-            auto new_layer_location = folder.copy_file(layer.lib_path, new_layer_name);
+            auto new_layer_location = folder.copy_file(layer.lib_path, layer_binary_name.str());
+
+#if COMMON_UNIX_PLATFORMS
+            if (layer_details.library_path_type == LibraryPathType::default_search_paths) {
+                platform_shim->redirect_dlopen_name(layer_binary_name, new_layer_location);
+            }
+            if (layer_details.library_path_type == LibraryPathType::relative) {
+                platform_shim->redirect_dlopen_name(
+                    fs::path(SYSCONFDIR) / "vulkan" / category_path_name(category) / "." / layer_binary_name, new_layer_location);
+            }
+#endif
+#if defined(WIN32)
+            if (layer_details.library_path_type == LibraryPathType::default_search_paths) {
+                SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_USER_DIRS);
+                AddDllDirectory(conver_str_to_wstr(new_layer_location.parent_path().str()).c_str());
+            }
+#endif
 
             // Don't load the layer binary if using any of the wrap objects layers, since it doesn't export the same interface
             // functions
@@ -494,146 +631,243 @@ void FrameworkEnvironment::add_layer_impl(TestLayerDetails layer_details, Manife
                 layers.push_back(TestLayerHandle(new_layer_location));
                 layers.back().reset_layer();
             }
-            layer.lib_path = new_layer_location;
+            if (layer_details.library_path_type == LibraryPathType::relative) {
+                layer.lib_path = fs::path(".") / layer_binary_name;
+            } else if (layer_details.library_path_type == LibraryPathType::default_search_paths) {
+                layer.lib_path = layer_binary_name;
+            } else {
+                layer.lib_path = new_layer_location;
+            }
         }
     }
     if (layer_details.discovery_type != ManifestDiscoveryType::none) {
-        auto layer_loc = folder.write_manifest(layer_details.json_name, layer_details.layer_manifest.get_manifest_str());
-        platform_shim->add_manifest(category, layer_loc);
+        // Write a manifest file to a folder as long as the discovery type isn't none
+        auto layer_manifest_loc = folder.write_manifest(layer_details.json_name, layer_details.layer_manifest.get_manifest_str());
+        // only add the manifest to the registry if its a generic location (as if it was installed) - both system and user local
+        if (layer_details.discovery_type == ManifestDiscoveryType::generic) {
+            platform_shim->add_manifest(category, layer_manifest_loc);
+        }
+        if (layer_details.discovery_type == ManifestDiscoveryType::unsecured_generic) {
+            platform_shim->add_unsecured_manifest(category, layer_manifest_loc);
+        }
         for (size_t i = new_layers_start; i < layers.size(); i++) {
-            layers.at(i).manifest_path = layer_loc;
+            layers.at(i).manifest_path = layer_manifest_loc;
+            layers.at(i).shimmed_manifest_path = layer_manifest_loc;
+#if COMMON_UNIX_PLATFORMS
+            if (layer_details.discovery_type == ManifestDiscoveryType::generic) {
+                layers.at(i).shimmed_manifest_path = platform_shim->query_default_redirect_path(category) / layer_details.json_name;
+            }
+#endif
         }
     }
+}
+
+std::string get_loader_settings_file_contents(const LoaderSettings& loader_settings) noexcept {
+    JsonWriter writer;
+    writer.StartObject();
+    writer.AddKeyedString("file_format_version", loader_settings.file_format_version.get_version_str());
+    bool one_setting_file = true;
+    if (loader_settings.app_specific_settings.size() > 1) {
+        writer.StartKeyedArray("settings_array");
+        one_setting_file = false;
+    }
+    for (const auto& setting : loader_settings.app_specific_settings) {
+        if (one_setting_file) {
+            writer.StartKeyedObject("settings");
+        } else {
+            writer.StartObject();
+        }
+        if (!setting.app_keys.empty()) {
+            writer.StartKeyedArray("app_keys");
+            for (const auto& app_key : setting.app_keys) {
+                writer.AddString(app_key);
+            }
+            writer.EndArray();
+        }
+        if (!setting.layer_configurations.empty()) {
+            writer.StartKeyedArray("layers");
+            for (const auto& config : setting.layer_configurations) {
+                writer.StartObject();
+                writer.AddKeyedString("name", config.name);
+                writer.AddKeyedString("path", fs::fixup_backslashes_in_path(config.path));
+                writer.AddKeyedString("control", config.control);
+                writer.AddKeyedBool("treat_as_implicit_manifest", config.treat_as_implicit_manifest);
+                writer.EndObject();
+            }
+            writer.EndArray();
+        }
+        if (!setting.stderr_log.empty()) {
+            writer.StartKeyedArray("stderr_log");
+            for (const auto& filter : setting.stderr_log) {
+                writer.AddString(filter);
+            }
+            writer.EndArray();
+        }
+        if (!setting.log_configurations.empty()) {
+            writer.StartKeyedArray("log_locations");
+            for (const auto& config : setting.log_configurations) {
+                writer.StartObject();
+                writer.StartKeyedArray("destinations");
+                for (const auto& dest : config.destinations) {
+                    writer.AddString(dest);
+                }
+                writer.EndArray();
+                writer.StartKeyedArray("filter");
+                for (const auto& filter : config.filters) {
+                    writer.AddString(filter);
+                }
+                writer.EndArray();
+                writer.EndObject();
+            }
+            writer.EndArray();
+        }
+        writer.EndObject();
+    }
+    if (!one_setting_file) {
+        writer.EndArray();
+    }
+
+    writer.EndObject();
+    return writer.output;
+}
+void FrameworkEnvironment::write_settings_file(std::string const& file_contents) {
+    auto out_path = get_folder(ManifestLocation::settings_location).write_manifest("vk_loader_settings.json", file_contents);
+#if defined(WIN32)
+    platform_shim->hkey_current_user_settings.clear();
+    platform_shim->hkey_local_machine_settings.clear();
+#endif
+    if (settings.secure_loader_settings)
+        platform_shim->add_manifest(ManifestCategory::settings, out_path);
+    else
+        platform_shim->add_unsecured_manifest(ManifestCategory::settings, out_path);
+}
+void FrameworkEnvironment::update_loader_settings(const LoaderSettings& settings) noexcept {
+    write_settings_file(get_loader_settings_file_contents(settings));
+}
+void FrameworkEnvironment::remove_loader_settings() {
+    get_folder(ManifestLocation::settings_location).remove("vk_loader_settings.json");
 }
 
 TestICD& FrameworkEnvironment::get_test_icd(size_t index) noexcept { return icds[index].get_test_icd(); }
 TestICD& FrameworkEnvironment::reset_icd(size_t index) noexcept { return icds[index].reset_icd(); }
 fs::path FrameworkEnvironment::get_test_icd_path(size_t index) noexcept { return icds[index].get_icd_full_path(); }
 fs::path FrameworkEnvironment::get_icd_manifest_path(size_t index) noexcept { return icds[index].get_icd_manifest_path(); }
+fs::path FrameworkEnvironment::get_shimmed_icd_manifest_path(size_t index) noexcept {
+    return icds[index].get_shimmed_manifest_path();
+}
 
 TestLayer& FrameworkEnvironment::get_test_layer(size_t index) noexcept { return layers[index].get_test_layer(); }
 TestLayer& FrameworkEnvironment::reset_layer(size_t index) noexcept { return layers[index].reset_layer(); }
 fs::path FrameworkEnvironment::get_test_layer_path(size_t index) noexcept { return layers[index].get_layer_full_path(); }
 fs::path FrameworkEnvironment::get_layer_manifest_path(size_t index) noexcept { return layers[index].get_layer_manifest_path(); }
+fs::path FrameworkEnvironment::get_shimmed_layer_manifest_path(size_t index) noexcept {
+    return layers[index].get_shimmed_manifest_path();
+}
 
 fs::FolderManager& FrameworkEnvironment::get_folder(ManifestLocation location) noexcept {
     // index it directly using the enum location since they will always be in that order
     return folders.at(static_cast<size_t>(location));
 }
-const char* get_platform_wsi_extension(const char* api_selection) {
-#if defined(VK_USE_PLATFORM_ANDROID_KHR)
-    return "VK_KHR_android_surface";
-#elif defined(VK_USE_PLATFORM_DIRECTFB_EXT)
-    return "VK_EXT_directfb_surface";
-#elif defined(VK_USE_PLATFORM_FUCHSIA)
-    return "VK_FUCHSIA_imagepipe_surface";
-#elif defined(VK_USE_PLATFORM_GGP)
-    return "VK_GGP_stream_descriptor_surface";
-#elif defined(VK_USE_PLATFORM_IOS_MVK)
-    return "VK_MVK_ios_surface";
-#elif defined(VK_USE_PLATFORM_MACOS_MVK) || defined(VK_USE_PLATFORM_METAL_EXT)
-#if defined(VK_USE_PLATFORM_MACOS_MVK)
-    if (string_eq(api_selection, "VK_USE_PLATFORM_MACOS_MVK")) return "VK_MVK_macos_surface";
-#endif
-#if defined(VK_USE_PLATFORM_METAL_EXT)
-    if (string_eq(api_selection, "VK_USE_PLATFORM_METAL_EXT")) return "VK_EXT_metal_surface";
-    return "VK_EXT_metal_surface";
-#endif
-#elif defined(VK_USE_PLATFORM_SCREEN_QNX)
-    return "VK_QNX_screen_surface";
-#elif defined(VK_USE_PLATFORM_VI_NN)
-    return "VK_NN_vi_surface";
-#elif defined(VK_USE_PLATFORM_XCB_KHR) || defined(VK_USE_PLATFORM_XLIB_KHR) || defined(VK_USE_PLATFORM_WAYLAND_KHR)
-#if defined(VK_USE_PLATFORM_XCB_KHR)
-    if (string_eq(api_selection, "VK_USE_PLATFORM_XCB_KHR")) return "VK_KHR_xcb_surface";
-#endif
-#if defined(VK_USE_PLATFORM_XLIB_KHR)
-    if (string_eq(api_selection, "VK_USE_PLATFORM_XLIB_KHR")) return "VK_KHR_xlib_surface";
-#endif
-#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
-    if (string_eq(api_selection, "VK_USE_PLATFORM_WAYLAND_KHR")) return "VK_KHR_wayland_surface";
-#endif
-#if defined(VK_USE_PLATFORM_XCB_KHR)
-    return "VK_KHR_xcb_surface";
-#endif
-#elif defined(VK_USE_PLATFORM_WIN32_KHR)
-    return "VK_KHR_win32_surface";
-#else
-    return "VK_KHR_display";
-#endif
+fs::FolderManager const& FrameworkEnvironment::get_folder(ManifestLocation location) const noexcept {
+    return folders.at(static_cast<size_t>(location));
 }
+#if defined(__APPLE__)
+void FrameworkEnvironment::setup_macos_bundle() noexcept {
+    platform_shim->bundle_contents = get_folder(ManifestLocation::macos_bundle).location().str();
+}
+#endif
 
-void setup_WSI_in_ICD(TestICD& icd, const char* api_selection) {
-    icd.enable_icd_wsi = true;
-    icd.add_instance_extensions({"VK_KHR_surface", get_platform_wsi_extension(api_selection)});
+std::vector<VkExtensionProperties> FrameworkEnvironment::GetInstanceExtensions(uint32_t expected_count, const char* layer_name) {
+    uint32_t count = 0;
+    VkResult res = vulkan_functions.vkEnumerateInstanceExtensionProperties(layer_name, &count, nullptr);
+    EXPECT_EQ(VK_SUCCESS, res);
+    EXPECT_EQ(count, expected_count);
+    std::vector<VkExtensionProperties> extension_props{count};
+    res = vulkan_functions.vkEnumerateInstanceExtensionProperties(layer_name, &count, extension_props.data());
+    EXPECT_EQ(VK_SUCCESS, res);
+    EXPECT_EQ(count, expected_count);
+    return extension_props;
 }
-void setup_WSI_in_create_instance(InstWrapper& inst, const char* api_selection) {
-    inst.create_info.add_extensions({"VK_KHR_surface", get_platform_wsi_extension(api_selection)});
+std::vector<VkLayerProperties> FrameworkEnvironment::GetLayerProperties(uint32_t expected_count) {
+    uint32_t count = 0;
+    VkResult res = vulkan_functions.vkEnumerateInstanceLayerProperties(&count, nullptr);
+    EXPECT_EQ(VK_SUCCESS, res);
+    EXPECT_EQ(count, expected_count);
+    std::vector<VkLayerProperties> layer_props{count};
+    res = vulkan_functions.vkEnumerateInstanceLayerProperties(&count, layer_props.data());
+    EXPECT_EQ(VK_SUCCESS, res);
+    EXPECT_EQ(count, expected_count);
+    return layer_props;
 }
 
 template <typename CreationFunc, typename CreateInfo>
-testing::AssertionResult create_surface_helper(InstWrapper& inst, VkSurfaceKHR& surface, const char* load_func_name) {
-    CreationFunc pfn_CreateSurface = inst.load(load_func_name);
-    if (!pfn_CreateSurface) return testing::AssertionFailure();
+VkResult create_surface_helper(VulkanFunctions* functions, VkInstance inst, VkSurfaceKHR& surface, const char* load_func_name) {
+    CreationFunc pfn_CreateSurface = functions->load(inst, load_func_name);
+    if (!pfn_CreateSurface) return VK_ERROR_EXTENSION_NOT_PRESENT;
     CreateInfo surf_create_info{};
-    VkResult res = pfn_CreateSurface(inst, &surf_create_info, nullptr, &surface);
-    return res == VK_SUCCESS ? testing::AssertionSuccess() : testing::AssertionFailure();
+    return pfn_CreateSurface(inst, &surf_create_info, nullptr, &surface);
 }
-testing::AssertionResult create_surface(InstWrapper& inst, VkSurfaceKHR& surface, const char* api_selection) {
+VkResult create_surface(VulkanFunctions* functions, VkInstance inst, VkSurfaceKHR& surface,
+                        [[maybe_unused]] const char* api_selection) {
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
-    return create_surface_helper<PFN_vkCreateAndroidSurfaceKHR, VkAndroidSurfaceCreateInfoKHR>(inst, surface,
+    return create_surface_helper<PFN_vkCreateAndroidSurfaceKHR, VkAndroidSurfaceCreateInfoKHR>(functions, inst, surface,
                                                                                                "vkCreateAndroidSurfaceKHR");
 #elif defined(VK_USE_PLATFORM_DIRECTFB_EXT)
-    return create_surface_helper<PFN_vkCreateDirectFBSurfaceEXT, VkDirectFBSurfaceCreateInfoEXT>(inst, surface,
-                                                                                                 "vkCreateDirectFBSurfaceEXT")
+    return create_surface_helper<PFN_vkCreateDirectFBSurfaceEXT, VkDirectFBSurfaceCreateInfoEXT>(functions, inst, surface,
+                                                                                                 "vkCreateDirectFBSurfaceEXT");
 #elif defined(VK_USE_PLATFORM_FUCHSIA)
     return create_surface_helper<PFN_vkCreateImagePipeSurfaceFUCHSIA, VkImagePipeSurfaceCreateInfoFUCHSIA>(
-        inst, surface, "vkCreateImagePipeSurfaceFUCHSIA");
+        functions, inst, surface, "vkCreateImagePipeSurfaceFUCHSIA");
 #elif defined(VK_USE_PLATFORM_GGP)
     return create_surface_helper<PFN__vkCreateStreamDescriptorSurfaceGGP, VkStreamDescriptorSurfaceCreateInfoGGP>(
-        inst, surface, "vkCreateStreamDescriptorSurfaceGGP");
+        functions, inst, surface, "vkCreateStreamDescriptorSurfaceGGP");
 #elif defined(VK_USE_PLATFORM_IOS_MVK)
-    return create_surface_helper<PFN_vkCreateIOSSurfaceMVK, VkIOSSurfaceCreateInfoMVK>(inst, surface, "vkCreateIOSSurfaceMVK");
+    return create_surface_helper<PFN_vkCreateIOSSurfaceMVK, VkIOSSurfaceCreateInfoMVK>(functions, inst, surface,
+                                                                                       "vkCreateIOSSurfaceMVK");
 #elif defined(VK_USE_PLATFORM_MACOS_MVK) || defined(VK_USE_PLATFORM_METAL_EXT)
 #if defined(VK_USE_PLATFORM_MACOS_MVK)
     if (api_selection != nullptr && string_eq(api_selection, "VK_USE_PLATFORM_MACOS_MVK"))
-        return create_surface_helper<PFN_vkCreateMacOSSurfaceMVK, VkMacOSSurfaceCreateInfoMVK>(inst, surface,
+        return create_surface_helper<PFN_vkCreateMacOSSurfaceMVK, VkMacOSSurfaceCreateInfoMVK>(functions, inst, surface,
                                                                                                "vkCreateMacOSSurfaceMVK");
 #endif
 #if defined(VK_USE_PLATFORM_METAL_EXT)
     if (api_selection == nullptr || (api_selection != nullptr && string_eq(api_selection, "VK_USE_PLATFORM_METAL_EXT")))
-        return create_surface_helper<PFN_vkCreateMetalSurfaceEXT, VkMetalSurfaceCreateInfoEXT>(inst, surface,
+        return create_surface_helper<PFN_vkCreateMetalSurfaceEXT, VkMetalSurfaceCreateInfoEXT>(functions, inst, surface,
                                                                                                "vkCreateMetalSurfaceEXT");
 #endif
-    return testing::AssertionFailure();
+    return VK_ERROR_NOT_PERMITTED_KHR;
 #elif defined(VK_USE_PLATFORM_SCREEN_QNX)
-    return create_surface_helper<PFN_vkCreateScreenSurfaceQNX, VkScreenSurfaceCreateInfoQNX>(inst, surface,
+    return create_surface_helper<PFN_vkCreateScreenSurfaceQNX, VkScreenSurfaceCreateInfoQNX>(functions, inst, surface,
                                                                                              "vkCreateScreenSurfaceQNX");
 #elif defined(VK_USE_PLATFORM_VI_NN)
-    return create_surface_helper<PFN_vkCreateViSurfaceNN, VkViSurfaceCreateInfoNN>(inst, surface, "vkCreateViSurfaceNN");
+    return create_surface_helper<PFN_vkCreateViSurfaceNN, VkViSurfaceCreateInfoNN>(functions, inst, surface, "vkCreateViSurfaceNN");
 #elif defined(VK_USE_PLATFORM_WIN32_KHR)
-    return create_surface_helper<PFN_vkCreateWin32SurfaceKHR, VkWin32SurfaceCreateInfoKHR>(inst, surface,
+    return create_surface_helper<PFN_vkCreateWin32SurfaceKHR, VkWin32SurfaceCreateInfoKHR>(functions, inst, surface,
                                                                                            "vkCreateWin32SurfaceKHR");
 #elif defined(VK_USE_PLATFORM_XCB_KHR) || defined(VK_USE_PLATFORM_XLIB_KHR) || defined(VK_USE_PLATFORM_WAYLAND_KHR)
 #if defined(VK_USE_PLATFORM_XLIB_KHR)
     if (string_eq(api_selection, "VK_USE_PLATFORM_XLIB_KHR"))
-        return create_surface_helper<PFN_vkCreateXlibSurfaceKHR, VkXlibSurfaceCreateInfoKHR>(inst, surface,
+        return create_surface_helper<PFN_vkCreateXlibSurfaceKHR, VkXlibSurfaceCreateInfoKHR>(functions, inst, surface,
                                                                                              "vkCreateXlibSurfaceKHR");
 #endif
 #if defined(VK_USE_PLATFORM_WAYLAND_KHR)
     if (string_eq(api_selection, "VK_USE_PLATFORM_WAYLAND_KHR"))
-        return create_surface_helper<PFN_vkCreateWaylandSurfaceKHR, VkWaylandSurfaceCreateInfoKHR>(inst, surface,
+        return create_surface_helper<PFN_vkCreateWaylandSurfaceKHR, VkWaylandSurfaceCreateInfoKHR>(functions, inst, surface,
                                                                                                    "vkCreateWaylandSurfaceKHR");
 #endif
 #if defined(VK_USE_PLATFORM_XCB_KHR)
     if (api_selection == nullptr || string_eq(api_selection, "VK_USE_PLATFORM_XCB_KHR"))
-        return create_surface_helper<PFN_vkCreateXcbSurfaceKHR, VkXcbSurfaceCreateInfoKHR>(inst, surface, "vkCreateXcbSurfaceKHR");
+        return create_surface_helper<PFN_vkCreateXcbSurfaceKHR, VkXcbSurfaceCreateInfoKHR>(functions, inst, surface,
+                                                                                           "vkCreateXcbSurfaceKHR");
 #endif
-    return testing::AssertionFailure();
+    return VK_ERROR_NOT_PERMITTED_KHR;
 #else
     return create_surface_helper<PFN_vkCreateDisplayPlaneSurfaceKHR, VkDisplaySurfaceCreateInfoKHR>(
-        inst, surface, "vkCreateDisplayPlaneSurfaceKHR");
+        functions, inst, surface, "vkCreateDisplayPlaneSurfaceKHR");
 #endif
+}
+VkResult create_surface(InstWrapper& inst, VkSurfaceKHR& surface, const char* api_selection) {
+    return create_surface(inst.functions, inst.inst, surface, api_selection);
 }
 
 extern "C" {

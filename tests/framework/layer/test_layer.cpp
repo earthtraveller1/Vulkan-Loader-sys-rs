@@ -27,55 +27,55 @@
 
 #include "test_layer.h"
 
-#include "loader/generated/vk_dispatch_table_helper.h"
+#include "vk_dispatch_table_helper.h"
 
 // export the enumeration functions instance|device+layer|extension
-#ifndef TEST_LAYER_EXPORT_ENUMERATE_FUNCTIONS
+#if !defined(TEST_LAYER_EXPORT_ENUMERATE_FUNCTIONS)
 #define TEST_LAYER_EXPORT_ENUMERATE_FUNCTIONS 0
 #endif
 
 // export test_layer_GetInstanceProcAddr
-#ifndef TEST_LAYER_EXPORT_LAYER_NAMED_GIPA
+#if !defined(TEST_LAYER_EXPORT_LAYER_NAMED_GIPA)
 #define TEST_LAYER_EXPORT_LAYER_NAMED_GIPA 0
 #endif
 
+// export test_override_GetInstanceProcAddr
+#if !defined(TEST_LAYER_EXPORT_OVERRIDE_GIPA)
+#define TEST_LAYER_EXPORT_OVERRIDE_GIPA 0
+#endif
+
 // export vkGetInstanceProcAddr
-#ifndef TEST_LAYER_EXPORT_LAYER_VK_GIPA
+#if !defined(TEST_LAYER_EXPORT_LAYER_VK_GIPA)
 #define TEST_LAYER_EXPORT_LAYER_VK_GIPA 0
 #endif
 
 // export test_layer_GetDeviceProcAddr
-#ifndef TEST_LAYER_EXPORT_LAYER_NAMED_GDPA
+#if !defined(TEST_LAYER_EXPORT_LAYER_NAMED_GDPA)
 #define TEST_LAYER_EXPORT_LAYER_NAMED_GDPA 0
 #endif
 
+// export test_override_GetDeviceProcAddr
+#if !defined(TEST_LAYER_EXPORT_OVERRIDE_GDPA)
+#define TEST_LAYER_EXPORT_OVERRIDE_GDPA 0
+#endif
+
 // export vkGetDeviceProcAddr
-#ifndef TEST_LAYER_EXPORT_LAYER_VK_GDPA
+#if !defined(TEST_LAYER_EXPORT_LAYER_VK_GDPA)
 #define TEST_LAYER_EXPORT_LAYER_VK_GDPA 0
 #endif
 
-// export GetInstanceProcAddr
-#ifndef TEST_LAYER_EXPORT_NO_PREFIX_GIPA
-#define TEST_LAYER_EXPORT_NO_PREFIX_GIPA 0
-#endif
-
-// export GetDeviceProcAddr
-#ifndef TEST_LAYER_EXPORT_NO_PREFIX_GDPA
-#define TEST_LAYER_EXPORT_NO_PREFIX_GDPA 0
-#endif
-
 // export vk_layerGetPhysicalDeviceProcAddr
-#ifndef TEST_LAYER_EXPORT_GET_PHYSICAL_DEVICE_PROC_ADDR
+#if !defined(TEST_LAYER_EXPORT_GET_PHYSICAL_DEVICE_PROC_ADDR)
 #define TEST_LAYER_EXPORT_GET_PHYSICAL_DEVICE_PROC_ADDR 0
 #endif
 
 // export vkNegotiateLoaderLayerInterfaceVersion
-#ifndef LAYER_EXPORT_NEGOTIATE_LOADER_LAYER_INTERFACE_VERSION
+#if !defined(LAYER_EXPORT_NEGOTIATE_LOADER_LAYER_INTERFACE_VERSION)
 #define LAYER_EXPORT_NEGOTIATE_LOADER_LAYER_INTERFACE_VERSION 0
 #endif
 
-#ifndef TEST_LAYER_NAME
-#define TEST_LAYER_NAME "VkLayer_LunarG_test_layer"
+#if !defined(TEST_LAYER_NAME)
+#define TEST_LAYER_NAME "VK_LAYER_LunarG_test_layer"
 #endif
 
 TestLayer layer;
@@ -86,6 +86,8 @@ FRAMEWORK_EXPORT TestLayer* reset_layer_func() {
     return new (&layer) TestLayer();
 }
 }
+
+VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL get_instance_func(VkInstance instance, const char* pName);
 
 VkLayerInstanceCreateInfo* get_chain_info(const VkInstanceCreateInfo* pCreateInfo, VkLayerFunction func) {
     VkLayerInstanceCreateInfo* chain_info = (VkLayerInstanceCreateInfo*)pCreateInfo->pNext;
@@ -105,9 +107,7 @@ VkLayerDeviceCreateInfo* get_chain_info(const VkDeviceCreateInfo* pCreateInfo, V
     return chain_info;
 }
 
-VKAPI_ATTR VkResult VKAPI_CALL test_vkEnumerateInstanceLayerProperties(uint32_t* pPropertyCount, VkLayerProperties* pProperties) {
-    return VK_SUCCESS;
-}
+VKAPI_ATTR VkResult VKAPI_CALL test_vkEnumerateInstanceLayerProperties(uint32_t*, VkLayerProperties*) { return VK_SUCCESS; }
 
 VKAPI_ATTR VkResult VKAPI_CALL test_vkEnumerateInstanceExtensionProperties(const char* pLayerName, uint32_t* pPropertyCount,
                                                                            VkExtensionProperties* pProperties) {
@@ -118,8 +118,7 @@ VKAPI_ATTR VkResult VKAPI_CALL test_vkEnumerateInstanceExtensionProperties(const
     return layer.instance_dispatch_table.EnumerateInstanceExtensionProperties(pLayerName, pPropertyCount, pProperties);
 }
 
-VKAPI_ATTR VkResult VKAPI_CALL test_vkEnumerateDeviceLayerProperties(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount,
-                                                                     VkLayerProperties* pProperties) {
+VKAPI_ATTR VkResult VKAPI_CALL test_vkEnumerateDeviceLayerProperties(VkPhysicalDevice, uint32_t*, VkLayerProperties*) {
     return VK_SUCCESS;
 }
 
@@ -150,6 +149,12 @@ VKAPI_ATTR VkResult VKAPI_CALL test_vkCreateInstance(const VkInstanceCreateInfo*
     PFN_vkCreateInstance fpCreateInstance = (PFN_vkCreateInstance)fpGetInstanceProcAddr(NULL, "vkCreateInstance");
     if (fpCreateInstance == NULL) {
         return VK_ERROR_INITIALIZATION_FAILED;
+    }
+
+    if (layer.call_create_device_while_create_device_is_called) {
+        auto* createDeviceCallback = get_chain_info(pCreateInfo, VK_LOADER_LAYER_CREATE_DEVICE_CALLBACK);
+        layer.callback_vkCreateDevice = createDeviceCallback->u.layerDevice.pfnLayerCreateDevice;
+        layer.callback_vkDestroyDevice = createDeviceCallback->u.layerDevice.pfnLayerDestroyDevice;
     }
 
     // Advance the link info for the next element of the chain
@@ -210,11 +215,54 @@ VKAPI_ATTR VkResult VKAPI_CALL test_vkCreateInstance(const VkInstanceCreateInfo*
         }
     }
 
+    if (!layer.make_spurious_log_in_create_instance.empty()) {
+        auto* chain = reinterpret_cast<const VkBaseInStructure*>(pCreateInfo->pNext);
+        while (chain) {
+            if (chain->sType == VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT) {
+                auto* debug_messenger = reinterpret_cast<const VkDebugUtilsMessengerCreateInfoEXT*>(chain);
+                VkDebugUtilsMessengerCallbackDataEXT data{};
+                data.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CALLBACK_DATA_EXT;
+                data.pMessage = layer.make_spurious_log_in_create_instance.c_str();
+                debug_messenger->pfnUserCallback(VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT,
+                                                 VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT, &data, debug_messenger->pUserData);
+            }
+
+            chain = chain->pNext;
+        }
+    }
+
+    if (layer.buggy_query_of_vkCreateDevice) {
+        layer.instance_dispatch_table.CreateDevice =
+            reinterpret_cast<PFN_vkCreateDevice>(fpGetInstanceProcAddr(nullptr, "vkCreateDevice"));
+    }
+
+    if (layer.call_create_device_while_create_device_is_called) {
+        uint32_t phys_dev_count = 0;
+        result = layer.instance_dispatch_table.EnumeratePhysicalDevices(layer.instance_handle, &phys_dev_count, nullptr);
+        if (result != VK_SUCCESS) {
+            return result;
+        }
+        layer.queried_physical_devices.resize(phys_dev_count);
+        result = layer.instance_dispatch_table.EnumeratePhysicalDevices(layer.instance_handle, &phys_dev_count,
+                                                                        layer.queried_physical_devices.data());
+        if (result != VK_SUCCESS) {
+            return result;
+        }
+    }
+
+    if (layer.check_if_EnumDevExtProps_is_same_as_queried_function) {
+        auto chain_info_EnumDeviceExtProps = reinterpret_cast<PFN_vkEnumerateDeviceExtensionProperties>(
+            fpGetInstanceProcAddr(layer.instance_handle, "vkEnumerateDeviceExtensionProperties"));
+        if (chain_info_EnumDeviceExtProps != layer.instance_dispatch_table.EnumerateDeviceExtensionProperties) {
+            return VK_ERROR_INITIALIZATION_FAILED;
+        }
+    }
+
     return result;
 }
 
-VKAPI_ATTR VkResult VKAPI_CALL test_override_vkCreateInstance(const VkInstanceCreateInfo* pCreateInfo,
-                                                              const VkAllocationCallbacks* pAllocator, VkInstance* pInstance) {
+VKAPI_ATTR VkResult VKAPI_CALL test_override_vkCreateInstance(const VkInstanceCreateInfo*, const VkAllocationCallbacks*,
+                                                              VkInstance*) {
     return VK_ERROR_INVALID_SHADER_NV;
 }
 
@@ -233,13 +281,21 @@ VKAPI_ATTR VkResult VKAPI_CALL test_vkCreateDevice(VkPhysicalDevice physicalDevi
 
     PFN_vkGetInstanceProcAddr fpGetInstanceProcAddr = chain_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
     PFN_vkGetDeviceProcAddr fpGetDeviceProcAddr = chain_info->u.pLayerInfo->pfnNextGetDeviceProcAddr;
-    PFN_vkCreateDevice fpCreateDevice = (PFN_vkCreateDevice)fpGetInstanceProcAddr(layer.instance_handle, "vkCreateDevice");
+    VkInstance instance_to_use = layer.buggy_query_of_vkCreateDevice ? NULL : layer.instance_handle;
+    PFN_vkCreateDevice fpCreateDevice = (PFN_vkCreateDevice)fpGetInstanceProcAddr(instance_to_use, "vkCreateDevice");
     if (fpCreateDevice == NULL) {
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
     layer.next_vkGetDeviceProcAddr = fpGetDeviceProcAddr;
 
+    if (layer.check_if_EnumDevExtProps_is_same_as_queried_function) {
+        auto chain_info_EnumDeviceExtProps = reinterpret_cast<PFN_vkEnumerateDeviceExtensionProperties>(
+            fpGetInstanceProcAddr(layer.instance_handle, "vkEnumerateDeviceExtensionProperties"));
+        if (chain_info_EnumDeviceExtProps != layer.instance_dispatch_table.EnumerateDeviceExtensionProperties) {
+            return VK_ERROR_INITIALIZATION_FAILED;
+        }
+    }
     // Advance the link info for the next element on the chain
     chain_info->u.pLayerInfo = chain_info->u.pLayerInfo->pNext;
 
@@ -272,6 +328,20 @@ VKAPI_ATTR VkResult VKAPI_CALL test_vkCreateDevice(VkPhysicalDevice physicalDevi
         } else {
             layer.spurious_device_memory_allocations.push_back({allocation, device.device_handle});
         }
+    }
+
+    if (layer.call_create_device_while_create_device_is_called) {
+        PFN_vkGetDeviceProcAddr next_gdpa = layer.next_vkGetDeviceProcAddr;
+        result = layer.callback_vkCreateDevice(
+            instance_to_use, layer.queried_physical_devices.at(layer.physical_device_index_to_use_during_create_device),
+            pCreateInfo, pAllocator, &layer.second_device_created_during_create_device.device_handle, get_instance_func,
+            &next_gdpa);
+        if (result != VK_SUCCESS) {
+            return result;
+        }
+        // initialize the other device's dispatch table
+        layer_init_device_dispatch_table(layer.second_device_created_during_create_device.device_handle,
+                                         &layer.second_device_created_during_create_device.dispatch_table, next_gdpa);
     }
 
     return result;
@@ -387,10 +457,8 @@ VKAPI_ATTR VkResult VKAPI_CALL test_vkEnumeratePhysicalDeviceGroups(
             //       underneath us when using this test.
             uint32_t icd_group_count = 0;
             layer.instance_dispatch_table.EnumeratePhysicalDeviceGroups(instance, &icd_group_count, nullptr);
-            std::vector<VkPhysicalDeviceGroupProperties> tmp_vector(icd_group_count);
-            for (uint32_t group = 0; group < icd_group_count; ++group) {
-                tmp_vector[group].sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GROUP_PROPERTIES;
-            }
+            std::vector<VkPhysicalDeviceGroupProperties> tmp_vector(icd_group_count,
+                                                                    {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GROUP_PROPERTIES});
             layer.instance_dispatch_table.EnumeratePhysicalDeviceGroups(instance, &icd_group_count, tmp_vector.data());
             layer.complete_physical_device_groups.clear();
 
@@ -475,6 +543,11 @@ VKAPI_ATTR void VKAPI_CALL test_vkDestroyDevice(VkDevice device, const VkAllocat
         }
     }
 
+    if (layer.call_create_device_while_create_device_is_called) {
+        layer.callback_vkDestroyDevice(layer.second_device_created_during_create_device.device_handle, pAllocator,
+                                       layer.second_device_created_during_create_device.dispatch_table.DestroyDevice);
+    }
+
     for (auto& created_device : layer.created_devices) {
         if (created_device.device_handle == device) {
             created_device.dispatch_table.DestroyDevice(device, pAllocator);
@@ -491,7 +564,7 @@ FRAMEWORK_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vk_layerGetPhysicalDev
 
 // trampolines
 VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL get_device_func(VkDevice device, const char* pName);
-VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL get_device_func_impl(VkDevice device, const char* pName) {
+VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL get_device_func_impl([[maybe_unused]] VkDevice device, const char* pName) {
     if (string_eq(pName, "vkGetDeviceProcAddr")) return to_vkVoidFunction(get_device_func);
     if (string_eq(pName, "vkDestroyDevice")) return to_vkVoidFunction(test_vkDestroyDevice);
 
@@ -510,14 +583,14 @@ VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL get_device_func_impl(VkDevice device, c
     return nullptr;
 }
 
-VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL get_device_func(VkDevice device, const char* pName) {
+VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL get_device_func([[maybe_unused]] VkDevice device, const char* pName) {
     PFN_vkVoidFunction ret_dev = get_device_func_impl(device, pName);
     if (ret_dev != nullptr) return ret_dev;
 
     return layer.next_vkGetDeviceProcAddr(device, pName);
 }
 
-VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL get_physical_device_func(VkInstance instance, const char* pName) {
+VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL get_physical_device_func([[maybe_unused]] VkInstance instance, const char* pName) {
     if (string_eq(pName, "vkEnumerateDeviceLayerProperties")) return to_vkVoidFunction(test_vkEnumerateDeviceLayerProperties);
     if (string_eq(pName, "vkEnumerateDeviceExtensionProperties"))
         return to_vkVoidFunction(test_vkEnumerateDeviceExtensionProperties);
@@ -651,6 +724,9 @@ FRAMEWORK_EXPORT VKAPI_ATTR VkResult VKAPI_CALL vkEnumerateDeviceExtensionProper
 FRAMEWORK_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL test_layer_GetInstanceProcAddr(VkInstance instance, const char* pName) {
     return get_instance_func(instance, pName);
 }
+#endif
+
+#if TEST_LAYER_EXPORT_OVERRIDE_GIPA
 FRAMEWORK_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL test_override_vkGetInstanceProcAddr(VkInstance instance,
                                                                                               const char* pName) {
     if (string_eq(pName, "vkCreateInstance")) return to_vkVoidFunction(test_override_vkCreateInstance);
@@ -670,20 +746,14 @@ FRAMEWORK_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL test_layer_GetDevicePr
 }
 #endif
 
-#if TEST_LAYER_EXPORT_LAYER_VK_GDPA
-FRAMEWORK_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char* pName) {
+#if TEST_LAYER_EXPORT_OVERRIDE_GDPA
+FRAMEWORK_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL test_override_GetDeviceProcAddr(VkDevice device, const char* pName) {
     return get_device_func(device, pName);
 }
 #endif
 
-#if TEST_LAYER_EXPORT_NO_PREFIX_GIPA
-FRAMEWORK_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetInstanceProcAddr(VkInstance instance, const char* pName) {
-    return get_instance_func(instance, pName);
-}
-#endif
-
-#if TEST_LAYER_EXPORT_NO_PREFIX_GDPA
-FRAMEWORK_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetDeviceProcAddr(VkDevice device, const char* pName) {
+#if TEST_LAYER_EXPORT_LAYER_VK_GDPA
+FRAMEWORK_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char* pName) {
     return get_device_func(device, pName);
 }
 #endif

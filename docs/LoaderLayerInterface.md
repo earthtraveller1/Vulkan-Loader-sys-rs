@@ -4,16 +4,16 @@
 [1]: https://vulkan.lunarg.com/img/Vulkan_100px_Dec16.png "https://www.khronos.org/vulkan/"
 [2]: https://www.khronos.org/vulkan/
 
-# Layer Interface to the Loader
+# Layer Interface to the Loader <!-- omit from toc -->
 [![Creative Commons][3]][4]
 
-<!-- Copyright &copy; 2015-2022 LunarG, Inc. -->
+<!-- Copyright &copy; 2015-2023 LunarG, Inc. -->
 
 [3]: https://i.creativecommons.org/l/by-nd/4.0/88x31.png "Creative Commons License"
 [4]: https://creativecommons.org/licenses/by-nd/4.0/
 
 
-## Table of Contents
+## Table of Contents <!-- omit from toc -->
 
 - [Overview](#overview)
 - [Layer Discovery](#layer-discovery)
@@ -30,6 +30,8 @@
     - [Layer Disable Filtering](#layer-disable-filtering)
     - [Layer Special Case Disable](#layer-special-case-disable)
     - [Layer Disable Warning](#layer-disable-warning)
+    - [Allow certain Layers to ignore Layer Disabling](#allow-certain-layers-to-ignore-layer-disabling)
+      - [`VK_INSTANCE_LAYERS`](#vk_instance_layers)
   - [Exception for Elevated Privileges](#exception-for-elevated-privileges)
 - [Layer Version Negotiation](#layer-version-negotiation)
 - [Layer Call Chains and Distributed Dispatch](#layer-call-chains-and-distributed-dispatch)
@@ -53,6 +55,7 @@
   - [Versioning and Activation Interactions](#versioning-and-activation-interactions)
 - [Layer Manifest File Format](#layer-manifest-file-format)
   - [Layer Manifest File Version History](#layer-manifest-file-version-history)
+  - [Layer Manifest File Version 1.2.1](#layer-manifest-file-version-121)
     - [Layer Manifest File Version 1.2.0](#layer-manifest-file-version-120)
     - [Layer Manifest File Version 1.1.2](#layer-manifest-file-version-112)
     - [Layer Manifest File Version 1.1.1](#layer-manifest-file-version-111)
@@ -504,7 +507,31 @@ Disabling layers, whether just through normal usage of
 `~all~` or `~explicit~` could cause application breakage if the application is
 relying on features provided by one or more explicit layers.
 
-##### VK_INSTANCE_LAYERS
+#### Allow certain Layers to ignore Layer Disabling
+
+**NOTE:** VK_LOADER_LAYERS_DISABLE is only available with Loaders built with version
+1.3.262 of the Vulkan headers and later.
+
+The layer allow environment variable `VK_LOADER_LAYERS_ALLOW` is a
+comma-delimited list of globs to search for in known layers.
+The layer names are compared against the globs listed in the environment
+variable, and if they match, they will not be able to be disabled by
+`VK_LOADER_LAYERS_DISABLE`.
+
+Implicit layers have the ability to only be enabled when a layer specified
+environment variable is set, allow for context dependent enablement.
+`VK_LOADER_LAYERS_ENABLE` ignores that context.
+`VK_LOADER_LAYERS_ALLOW` behaves similar to `VK_LOADER_LAYERS_ENABLE` while
+also respecting the context which is normally used to determine whether an
+implicit layer should be enabled.
+
+`VK_LOADER_LAYERS_ALLOW` effectively negates the behavior of
+`VK_LOADER_LAYERS_DISABLE`.
+Explicit layers listed by `VK_LOADER_LAYERS_ALLOW` will not be enabled.
+Implicit layers listed by ``VK_LOADER_LAYERS_ALLOW` which are always active,
+i.e. they do not require any external context to be enabled, will be enabled.
+
+##### `VK_INSTANCE_LAYERS`
 
 The original `VK_INSTANCE_LAYERS` can be viewed as a special case of the new
 `VK_LOADER_LAYERS_ENABLE`.
@@ -1176,7 +1203,7 @@ If any component layer is not present in the provided override paths, the meta
 layer is disabled.
 
 The override meta-layer is primarily enabled when using the
-[VkConfig](https://github.com/LunarG/VulkanTools/blob/master/vkconfig/README.md)
+[VkConfig](https://github.com/LunarG/VulkanTools/blob/main/vkconfig/README.md)
 tool included in the Vulkan SDK.
 It is typically only available while the VkConfig tool is actually executing.
 Please refer to that documentation for more information.
@@ -1895,7 +1922,7 @@ application.
 #### Layer Manifest File Version 1.2.0
 
 The ability to define the layer settings as defined by the
-[layer manifest schema](https://github.com/LunarG/VulkanTools/blob/master/vkconfig_core/layers/layers_schema.json).
+[layer manifest schema](https://github.com/LunarG/VulkanTools/blob/main/vkconfig_core/layers/layers_schema.json).
 
 The ability to briefly document the layer thanks to the fields:
  * "introduction": Presentation of the purpose of the layer in a paragraph.
@@ -1905,7 +1932,7 @@ The ability to briefly document the layer thanks to the fields:
 
 These changes were made to enable third-party layers to expose their features
 within
-[Vulkan Configurator](https://github.com/LunarG/VulkanTools/blob/master/vkconfig/README.md)
+[Vulkan Configurator](https://github.com/LunarG/VulkanTools/blob/main/vkconfig/README.md)
 or other tools.
 
 #### Layer Manifest File Version 1.1.2
@@ -1994,7 +2021,7 @@ Note: If a layer wraps the VkInstance handle, support for
 ### Layer Interface Version 1
 
 A layer supporting interface version 1 had the following behavior:
- 1. `GetInstanceProcAddr` and `GetDeviceProcAddr` were directly exported
+ 1. `vkGetInstanceProcAddr` and `vkGetDeviceProcAddr` were directly exported
  2. The layer manifest file was able to override the names of the
 `GetInstanceProcAddr` and `GetDeviceProcAddr`functions.
 
@@ -2193,7 +2220,7 @@ Android Vulkan documentation</a>.
     <td>A layer <b>must</b> have a valid JSON manifest file for the
         loader to process that ends with the ".json" suffix.
         It is recommended validating the layer manifest file against
-        <a href="https://github.com/LunarG/VulkanTools/blob/master/vkconfig_core/layers/layers_schema.json">
+        <a href="https://github.com/LunarG/VulkanTools/blob/main/vkconfig_core/layers/layers_schema.json">
         the layer schema</a> prior to publication.</br>
         The <b>only</b> exception is on Android which determines layer
         functionality through the introspection functions defined in
@@ -2271,7 +2298,7 @@ Android Vulkan documentation</a>.
     <td>Yes</td>
     <td>No</td>
     <td><small>
-        <a href="https://github.com/KhronosGroup/VK-GL-CTS/blob/master/external/openglcts/README.md">
+        <a href="https://github.com/KhronosGroup/VK-GL-CTS/blob/main/external/openglcts/README.md">
         Vulkan CTS Documentation</a>
         </small>
     </td>

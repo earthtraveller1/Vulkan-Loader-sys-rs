@@ -160,6 +160,8 @@ struct TestLayer {
         return nullptr;
     }
 
+    // Allows distinguishing different layers (that use the same binary)
+    BUILDER_VALUE(TestLayer, std::string, make_spurious_log_in_create_instance, "")
     BUILDER_VALUE(TestLayer, bool, do_spurious_allocations_in_create_instance, false)
     void* spurious_instance_memory_allocation = nullptr;
     BUILDER_VALUE(TestLayer, bool, do_spurious_allocations_in_create_device, false)
@@ -171,6 +173,15 @@ struct TestLayer {
 
     // By default query GPDPA from GIPA, don't use value given from pNext
     BUILDER_VALUE(TestLayer, bool, use_gipa_GetPhysicalDeviceProcAddr, true)
+
+    // Have a layer query for vkCreateDevice with a NULL instance handle
+    BUILDER_VALUE(TestLayer, bool, buggy_query_of_vkCreateDevice, false)
+
+    // Makes the layer try to create a device using the loader provided function in the layer chain
+    BUILDER_VALUE(TestLayer, bool, call_create_device_while_create_device_is_called, false)
+    BUILDER_VALUE(TestLayer, uint32_t, physical_device_index_to_use_during_create_device, 0)
+
+    BUILDER_VALUE(TestLayer, bool, check_if_EnumDevExtProps_is_same_as_queried_function, false)
 
     PFN_vkGetInstanceProcAddr next_vkGetInstanceProcAddr = VK_NULL_HANDLE;
     PFN_GetPhysicalDeviceProcAddr next_GetPhysicalDeviceProcAddr = VK_NULL_HANDLE;
@@ -184,6 +195,12 @@ struct TestLayer {
         VkLayerDispatchTable dispatch_table{};
     };
     std::vector<Device> created_devices;
+
+    // Stores the callback that allows layers to create devices on their own
+    PFN_vkLayerCreateDevice callback_vkCreateDevice{};
+    PFN_vkLayerDestroyDevice callback_vkDestroyDevice{};
+    std::vector<VkPhysicalDevice> queried_physical_devices;
+    Device second_device_created_during_create_device{};
 };
 
 using GetTestLayerFunc = TestLayer* (*)();

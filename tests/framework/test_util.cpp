@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2021 The Khronos Group Inc.
- * Copyright (c) 2021 Valve Corporation
- * Copyright (c) 2021 LunarG, Inc.
+ * Copyright (c) 2021-2023 The Khronos Group Inc.
+ * Copyright (c) 2021-2023 Valve Corporation
+ * Copyright (c) 2021-2023 LunarG, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and/or associated documentation files (the "Materials"), to
@@ -57,13 +57,13 @@ void print_error_message(LSTATUS status, const char* function_name, std::string 
     LocalFree(lpMsgBuf);
 }
 
-void set_env_var(std::string const& name, std::string const& value) {
-    BOOL ret = SetEnvironmentVariableW(widen(name).c_str(), widen(value).c_str());
+void EnvVarWrapper::set_env_var() {
+    BOOL ret = SetEnvironmentVariableW(widen(name).c_str(), widen(cur_value).c_str());
     if (ret == 0) {
         print_error_message(ERROR_SETENV_FAILED, "SetEnvironmentVariableW");
     }
 }
-void remove_env_var(std::string const& name) { SetEnvironmentVariableW(widen(name).c_str(), nullptr); }
+void EnvVarWrapper::remove_env_var() const { SetEnvironmentVariableW(widen(name).c_str(), nullptr); }
 std::string get_env_var(std::string const& name, bool report_failure) {
     std::wstring name_utf16 = widen(name);
     DWORD value_size = GetEnvironmentVariableW(name_utf16.c_str(), nullptr, 0);
@@ -77,10 +77,10 @@ std::string get_env_var(std::string const& name, bool report_failure) {
     }
     return narrow(value);
 }
-#elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+#elif COMMON_UNIX_PLATFORMS
 
-void set_env_var(std::string const& name, std::string const& value) { setenv(name.c_str(), value.c_str(), 1); }
-void remove_env_var(std::string const& name) { unsetenv(name.c_str()); }
+void EnvVarWrapper::set_env_var() { setenv(name.c_str(), cur_value.c_str(), 1); }
+void EnvVarWrapper::remove_env_var() const { unsetenv(name.c_str()); }
 std::string get_env_var(std::string const& name, bool report_failure) {
     char* ret = getenv(name.c_str());
     if (ret == nullptr) {
@@ -92,98 +92,88 @@ std::string get_env_var(std::string const& name, bool report_failure) {
 #endif
 
 template <typename T>
-void print_list_of_t(std::string& out, const char* object_name, std::vector<T> const& vec) {
-    if (vec.size() > 0) {
-        out += std::string(",\n\t\t\"") + object_name + "\": {";
-        for (size_t i = 0; i < vec.size(); i++) {
-            if (i > 0) out += ",\t\t\t";
-            out += "\n\t\t\t" + vec.at(i).get_manifest_str();
-        }
-        out += "\n\t\t}";
+void print_object_of_t(JsonWriter& writer, const char* object_name, std::vector<T> const& vec) {
+    if (vec.size() == 0) return;
+    writer.StartKeyedObject(object_name);
+    for (auto& element : vec) {
+        element.get_manifest_str(writer);
     }
+    writer.EndObject();
 }
 
 template <typename T>
-void print_vector_of_t(std::string& out, const char* object_name, std::vector<T> const& vec) {
-    if (vec.size() > 0) {
-        out += std::string(",\n\t\t\"") + object_name + "\": [";
-        for (size_t i = 0; i < vec.size(); i++) {
-            if (i > 0) out += ",\t\t\t";
-            out += "\n\t\t\t" + vec.at(i).get_manifest_str();
-        }
-        out += "\n\t\t]";
+void print_array_of_t(JsonWriter& writer, const char* object_name, std::vector<T> const& vec) {
+    if (vec.size() == 0) return;
+    writer.StartKeyedArray(object_name);
+    for (auto& element : vec) {
+        element.get_manifest_str(writer);
     }
+    writer.EndArray();
 }
-void print_vector_of_strings(std::string& out, const char* object_name, std::vector<std::string> const& strings) {
-    if (strings.size() > 0) {
-        out += std::string(",\n\t\t\"") + object_name + "\": [";
-        for (size_t i = 0; i < strings.size(); i++) {
-            if (i > 0) out += ",\t\t\t";
-            out += "\"" + fs::fixup_backslashes_in_path(strings.at(i)) + "\"";
-        }
-        out += "]";
+void print_vector_of_strings(JsonWriter& writer, const char* object_name, std::vector<std::string> const& strings) {
+    if (strings.size() == 0) return;
+    writer.StartKeyedArray(object_name);
+    for (auto& str : strings) {
+        writer.AddString(fs::fixup_backslashes_in_path(str));
     }
+    writer.EndArray();
 }
 
 std::string to_text(bool b) { return b ? std::string("true") : std::string("false"); }
 
 std::string ManifestICD::get_manifest_str() const {
-    std::string out;
-    out += "{\n";
-    out += "    " + file_format_version.get_version_str() + "\n";
-    out += "    \"ICD\": {\n";
-    out += "        \"library_path\": \"" + fs::fixup_backslashes_in_path(lib_path) + "\",\n";
-    out += "        \"api_version\": \"" + version_to_string(api_version) + "\",\n";
-    out += "        \"is_portability_driver\": " + to_text(is_portability_driver);
-    if (!library_arch.empty()) {
-        out += ",\n       \"library_arch\": \"" + library_arch + "\"\n";
-    } else {
-        out += "\n";
-    }
-    out += "    }\n";
-    out += "}\n";
-    return out;
+    JsonWriter writer;
+    writer.StartObject();
+    writer.AddKeyedString("file_format_version", file_format_version.get_version_str());
+    writer.StartKeyedObject("ICD");
+    writer.AddKeyedString("library_path", fs::fixup_backslashes_in_path(lib_path).str());
+    writer.AddKeyedString("api_version", version_to_string(api_version));
+    writer.AddKeyedBool("is_portability_driver", is_portability_driver);
+    if (!library_arch.empty()) writer.AddKeyedString("library_arch", library_arch);
+    writer.EndObject();
+    writer.EndObject();
+    return writer.output;
 }
 
-std::string ManifestLayer::LayerDescription::Extension::get_manifest_str() const {
-    std::string out;
-    out += "{ \"name\":\"" + name + "\",\n\t\t\t\"spec_version\":\"" + std::to_string(spec_version) + "\"";
-    print_vector_of_strings(out, "entrypoints", entrypoints);
-    out += "\n\t\t\t}";
-    return out;
+void ManifestLayer::LayerDescription::Extension::get_manifest_str(JsonWriter& writer) const {
+    writer.StartObject();
+    writer.AddKeyedString("name", name);
+    writer.AddKeyedString("spec_version", std::to_string(spec_version));
+    writer.AddKeyedString("spec_version", std::to_string(spec_version));
+    print_vector_of_strings(writer, "entrypoints", entrypoints);
+    writer.EndObject();
 }
 
-std::string ManifestLayer::LayerDescription::get_manifest_str() const {
-    std::string out;
-    out += "\t{\n";
-    out += "\t\t\"name\":\"" + name + "\",\n";
-    out += "\t\t\"type\":\"" + get_type_str(type) + "\",\n";
-    if (lib_path.size() > 0) {
-        out += "\t\t\"library_path\": \"" + fs::fixup_backslashes_in_path(lib_path.str()) + "\",\n";
+void ManifestLayer::LayerDescription::get_manifest_str(JsonWriter& writer) const {
+    writer.AddKeyedString("name", name);
+    writer.AddKeyedString("type", get_type_str(type));
+    if (!lib_path.str().empty()) {
+        writer.AddKeyedString("library_path", fs::fixup_backslashes_in_path(lib_path.str()));
     }
-    out += "\t\t\"api_version\": \"" + version_to_string(api_version) + "\",\n";
-    out += "\t\t\"implementation_version\":\"" + std::to_string(implementation_version) + "\",\n";
-    out += "\t\t\"description\": \"" + description + "\"";
-    print_list_of_t(out, "functions", functions);
-    print_vector_of_t(out, "instance_extensions", instance_extensions);
-    print_vector_of_t(out, "device_extensions", device_extensions);
+    writer.AddKeyedString("api_version", version_to_string(api_version));
+    writer.AddKeyedString("implementation_version", std::to_string(implementation_version));
+    writer.AddKeyedString("description", description);
+    print_object_of_t(writer, "functions", functions);
+    print_array_of_t(writer, "instance_extensions", instance_extensions);
+    print_array_of_t(writer, "device_extensions", device_extensions);
     if (!enable_environment.empty()) {
-        out += ",\n\t\t\"enable_environment\": { \"" + enable_environment + "\": \"1\" }";
+        writer.StartKeyedObject("enable_environment");
+        writer.AddKeyedString(enable_environment, "1");
+        writer.EndObject();
     }
     if (!disable_environment.empty()) {
-        out += ",\n\t\t\"disable_environment\": { \"" + disable_environment + "\": \"1\" }";
+        writer.StartKeyedObject("disable_environment");
+        writer.AddKeyedString(disable_environment, "1");
+        writer.EndObject();
     }
-    print_vector_of_strings(out, "component_layers", component_layers);
-    print_vector_of_strings(out, "blacklisted_layers", blacklisted_layers);
-    print_vector_of_strings(out, "override_paths", override_paths);
-    print_vector_of_strings(out, "app_keys", app_keys);
-    print_list_of_t(out, "pre_instance_functions", pre_instance_functions);
+    print_vector_of_strings(writer, "component_layers", component_layers);
+    print_vector_of_strings(writer, "blacklisted_layers", blacklisted_layers);
+    print_vector_of_strings(writer, "override_paths", override_paths);
+    print_vector_of_strings(writer, "app_keys", app_keys);
+    print_object_of_t(writer, "pre_instance_functions", pre_instance_functions);
     if (!library_arch.empty()) {
-        out += ",\n\t\t\"library_arch\": \"" + library_arch + "\"";
+        writer.AddKeyedString("library_arch", library_arch);
     }
-    out += "\n\t}";
-
-    return out;
 }
 
 VkLayerProperties ManifestLayer::LayerDescription::get_layer_properties() const {
@@ -196,22 +186,24 @@ VkLayerProperties ManifestLayer::LayerDescription::get_layer_properties() const 
 }
 
 std::string ManifestLayer::get_manifest_str() const {
-    std::string out;
-    out += "{\n";
-    out += "\t" + file_format_version.get_version_str() + "\n";
+    JsonWriter writer;
+    writer.StartObject();
+    writer.AddKeyedString("file_format_version", file_format_version.get_version_str());
     if (layers.size() == 1) {
-        out += "\t\"layer\": ";
-        out += layers.at(0).get_manifest_str() + "\n";
+        writer.StartKeyedObject("layer");
+        layers.at(0).get_manifest_str(writer);
+        writer.EndObject();
     } else {
-        out += "\"\tlayers\": [";
+        writer.StartKeyedArray("layers");
         for (size_t i = 0; i < layers.size(); i++) {
-            if (i > 0) out += ",";
-            out += "\n" + layers.at(0).get_manifest_str();
+            writer.StartObject();
+            layers.at(i).get_manifest_str(writer);
+            writer.EndObject();
         }
-        out += "\n]";
+        writer.EndArray();
     }
-    out += "}\n";
-    return out;
+    writer.EndObject();
+    return writer.output;
 }
 
 namespace fs {
@@ -224,7 +216,7 @@ std::string make_native(std::string const& in_path) {
         else
             out += c;
     }
-#elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+#elif COMMON_UNIX_PLATFORMS
     for (size_t i = 0; i < in_path.size(); i++) {
         if (i + 1 < in_path.size() && in_path[i] == '\\' && in_path[i + 1] == '\\') {
             out += '/';
@@ -516,6 +508,49 @@ path FolderManager::copy_file(path const& file, std::string const& new_name) {
 }
 }  // namespace fs
 
+const char* get_platform_wsi_extension([[maybe_unused]] const char* api_selection) {
+#if defined(VK_USE_PLATFORM_ANDROID_KHR)
+    return "VK_KHR_android_surface";
+#elif defined(VK_USE_PLATFORM_DIRECTFB_EXT)
+    return "VK_EXT_directfb_surface";
+#elif defined(VK_USE_PLATFORM_FUCHSIA)
+    return "VK_FUCHSIA_imagepipe_surface";
+#elif defined(VK_USE_PLATFORM_GGP)
+    return "VK_GGP_stream_descriptor_surface";
+#elif defined(VK_USE_PLATFORM_IOS_MVK)
+    return "VK_MVK_ios_surface";
+#elif defined(VK_USE_PLATFORM_MACOS_MVK) || defined(VK_USE_PLATFORM_METAL_EXT)
+#if defined(VK_USE_PLATFORM_MACOS_MVK)
+    if (string_eq(api_selection, "VK_USE_PLATFORM_MACOS_MVK")) return "VK_MVK_macos_surface";
+#endif
+#if defined(VK_USE_PLATFORM_METAL_EXT)
+    if (string_eq(api_selection, "VK_USE_PLATFORM_METAL_EXT")) return "VK_EXT_metal_surface";
+    return "VK_EXT_metal_surface";
+#endif
+#elif defined(VK_USE_PLATFORM_SCREEN_QNX)
+    return "VK_QNX_screen_surface";
+#elif defined(VK_USE_PLATFORM_VI_NN)
+    return "VK_NN_vi_surface";
+#elif defined(VK_USE_PLATFORM_XCB_KHR) || defined(VK_USE_PLATFORM_XLIB_KHR) || defined(VK_USE_PLATFORM_WAYLAND_KHR)
+#if defined(VK_USE_PLATFORM_XCB_KHR)
+    if (string_eq(api_selection, "VK_USE_PLATFORM_XCB_KHR")) return "VK_KHR_xcb_surface";
+#endif
+#if defined(VK_USE_PLATFORM_XLIB_KHR)
+    if (string_eq(api_selection, "VK_USE_PLATFORM_XLIB_KHR")) return "VK_KHR_xlib_surface";
+#endif
+#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
+    if (string_eq(api_selection, "VK_USE_PLATFORM_WAYLAND_KHR")) return "VK_KHR_wayland_surface";
+#endif
+#if defined(VK_USE_PLATFORM_XCB_KHR)
+    return "VK_KHR_xcb_surface";
+#endif
+#elif defined(VK_USE_PLATFORM_WIN32_KHR)
+    return "VK_KHR_win32_surface";
+#else
+    return "VK_KHR_display";
+#endif
+}
+
 bool string_eq(const char* a, const char* b) noexcept { return a && b && strcmp(a, b) == 0; }
 bool string_eq(const char* a, const char* b, size_t len) noexcept { return a && b && strncmp(a, b, len) == 0; }
 
@@ -542,6 +577,10 @@ VkInstanceCreateInfo* InstanceCreateInfo::get() noexcept {
 }
 InstanceCreateInfo& InstanceCreateInfo::set_api_version(uint32_t major, uint32_t minor, uint32_t patch) {
     this->api_version = VK_MAKE_API_VERSION(0, major, minor, patch);
+    return *this;
+}
+InstanceCreateInfo& InstanceCreateInfo::setup_WSI(const char* api_selection) {
+    add_extensions({"VK_KHR_surface", get_platform_wsi_extension(api_selection)});
     return *this;
 }
 

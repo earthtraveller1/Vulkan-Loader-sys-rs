@@ -1,10 +1,6 @@
-# Vulkan Ecosystem Components
+# Vulkan Loader
 
-This project provides the Khronos official Vulkan ICD desktop loader for Windows, Linux, and MacOS.
-
-## CI Build Status
-
-[![Build Status](https://github.com/KhronosGroup/Vulkan-Loader/workflows/CI%20Build/badge.svg?branch=master)](https://github.com/KhronosGroup/Vulkan-Loader/actions)
+This project provides the Khronos official Vulkan Loader for all platforms except [Android](https://android.googlesource.com/platform/frameworks/native/+/master/vulkan/)
 
 ## Introduction
 
@@ -31,16 +27,13 @@ The following components are available in this repository:
 ## Information for Developing or Contributing
 
 Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file in this repository for more details.
-Please see the [GOVERNANCE.md](GOVERNANCE.md) file in this repository for repository
-management details.
+Please see the [GOVERNANCE.md](GOVERNANCE.md) file in this repository for repository management details.
 
 ## How to Build and Run
 
-[BUILD.md](BUILD.md)
-Includes directions for building all components.
+[BUILD.md](BUILD.md) includes directions for building all components.
 
-Architecture and interface information for the loader is in
-[docs/LoaderInterfaceArchitecture.md](docs/LoaderInterfaceArchitecture.md).
+Architecture and interface information for the loader is in [docs/LoaderInterfaceArchitecture.md](docs/LoaderInterfaceArchitecture.md).
 
 ## Version Tagging Scheme
 
@@ -52,8 +45,7 @@ This scheme was adopted following the 1.1.96 Vulkan specification release.
 
 ## License
 
-This work is released as open source under a Apache-style license from Khronos
-including a Khronos copyright.
+This work is released as open source under a Apache-style license from Khronos including a Khronos copyright.
 
 ## Acknowledgements
 
